@@ -1,0 +1,17 @@
+{
+  "name": "task-with-pdf",
+  "runs": 2,
+  "warmup": 1,
+  "measure_cold_start": false,
+  "options": { "temperature": 0, "num_predict": 200, "think": false },
+  "models": ["qwen3:4b-q4_K_M"],
+  "context_lengths": [null],
+  "prompts": [
+    {
+      "key": "pdf_spec_qa",
+      "text": "Using only the attached spec sheet, list the VRAM capacity, memory bandwidth, and the configurable TGP range. Answer as a short bulleted list.",
+      "note": "Reference is a compressed PDF — exercises the built-in PDF text extractor.",
+      "files": ["docs/spec-compressed.pdf"]
+    }
+  ]
+}

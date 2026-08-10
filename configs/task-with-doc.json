@@ -1,0 +1,22 @@
+{
+  "name": "task-with-doc",
+  "runs": 2,
+  "warmup": 1,
+  "measure_cold_start": false,
+  "options": { "temperature": 0, "num_predict": 320, "think": false },
+  "models": ["qwen3:4b-q4_K_M"],
+  "context_lengths": [null],
+  "prompts": [
+    {
+      "key": "grounded_no_doc",
+      "text": "How much VRAM does the RTX 5070 Laptop GPU have, and can it run an 8B model quantized to 4-bit with long context? Answer concisely.",
+      "note": "Same question WITHOUT the reference doc — baseline for grounding."
+    },
+    {
+      "key": "grounded_with_doc",
+      "text": "Using only the reference material, answer concisely: How much VRAM does the RTX 5070 Laptop GPU have, and can it run an 8B model quantized to 4-bit with long context? Cite the relevant detail.",
+      "note": "Same question WITH the spec sheet injected — grounded answer.",
+      "files": ["docs/rtx-spec.md"]
+    }
+  ]
+}

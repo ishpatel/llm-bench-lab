@@ -1,0 +1,10 @@
+{
+  "name": "smoke",
+  "runs": 1,
+  "warmup": 0,
+  "measure_cold_start": false,
+  "options": { "temperature": 0, "num_predict": 48 },
+  "models": ["qwen3:4b-q4_K_M"],
+  "context_lengths": [null],
+  "prompts": ["short_qa"]
+}

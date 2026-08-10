@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Generated benchmark output (local run history — not source)
+results/
+runs/
+
+# OS / editor cruft
+.DS_Store
+*.swp
+.idea/
+.vscode/

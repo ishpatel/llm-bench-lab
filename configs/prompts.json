@@ -1,0 +1,14 @@
+{
+  "short_qa": {
+    "text": "In one sentence, what is a KV cache in transformer LLM inference?",
+    "note": "Short prompt, short answer — isolates decode speed with minimal prefill."
+  },
+  "reasoning": {
+    "text": "Explain, step by step and concisely, how quantizing an LLM from FP16 to INT4 affects (1) memory footprint, (2) inference throughput, and (3) output quality. Keep it under 200 words.",
+    "note": "Medium prompt, structured reasoning — representative interactive task."
+  },
+  "prefill_stress": {
+    "text": "You are reviewing the following notes before answering.\n\nLocal AI inference on client hardware is bounded by several distinct resources, and confusing them is a common mistake. Model weights occupy memory proportional to parameter count and precision: a 7-billion-parameter model at FP16 needs roughly 14 GB just for weights, while the same model quantized to 4-bit needs closer to 4 GB. But weights are only one consumer of memory. The KV cache grows with both context length and batch size, and at long context it can rival or exceed the size of the weights themselves. Activations and workspace scratch memory add further overhead. On a discrete GPU with a fixed VRAM budget, exceeding capacity forces the runtime to offload layers to system RAM, and the resulting transfers across the PCIe bus dominate latency, collapsing throughput. On a unified-memory system the CPU and GPU share one pool, so there is no discrete-VRAM ceiling in the same sense, but total system memory and memory bandwidth still bound what is practical. Separately, compute throughput — how fast the accelerator performs the matrix multiplications that dominate attention and the feed-forward layers — determines the ceiling on tokens per second once everything is resident. Memory capacity and compute throughput are therefore independent constraints: a workload can be memory-bound, compute-bound, or bandwidth-bound, and the bottleneck can shift as context length grows. Quantization primarily relieves the memory-capacity constraint and can improve throughput by reducing the bytes moved per operation, at some risk to output quality. Time to first token is dominated by model load plus prompt prefill, while steady-state tokens per second reflects decode speed; these are different metrics and a system can be strong at one and weak at the other.\n\nBased only on the notes above, answer in three sentences: why can a model that fits in a GPU's VRAM still run slowly as the conversation gets longer?",
+    "note": "Long prefill (~400 tokens of context) — stresses prompt-processing / prefill throughput and exercises KV-cache growth."
+  }
+}

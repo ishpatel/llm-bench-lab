@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>llmbench — local AI benchmarking</title>
+<style>
+  :root{--bg:#ffffff;--fg:#1a1a1a;--muted:#6b7280;--card:#f7f7f8;--border:#e5e7eb;
+    --accent:#76b900;--accent-fg:#0a0a0a;--danger:#e5484d;--good:#2f9e44;--warn:#e6a700;
+    --input:#ffffff;--shadow:0 1px 3px rgba(0,0,0,.08);}
+  @media (prefers-color-scheme:dark){:root{--bg:#0f1115;--fg:#e6e6e6;--muted:#9aa0a6;
+    --card:#181b21;--border:#2a2f38;--input:#12151b;--accent-fg:#0a0a0a;--shadow:none;}}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  a{color:var(--accent)}
+  header{display:flex;align-items:center;gap:14px;padding:14px 22px;
+    border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:5}
+  header h1{font-size:18px;margin:0;font-weight:700}
+  header h1 b{color:var(--accent)}
+  .sysinfo{font-size:12px;color:var(--muted);margin-left:auto;text-align:right}
+  .sysinfo .warn{color:var(--danger)}
+  nav{display:flex;gap:4px;padding:0 18px;border-bottom:1px solid var(--border);
+    background:var(--bg);position:sticky;top:53px;z-index:4}
+  nav button{background:none;border:none;color:var(--muted);font-size:14px;font-weight:600;
+    padding:12px 14px;cursor:pointer;border-bottom:2px solid transparent}
+  nav button.active{color:var(--fg);border-bottom-color:var(--accent)}
+  nav .badge{background:var(--accent);color:var(--accent-fg);border-radius:10px;
+    font-size:11px;padding:1px 7px;margin-left:6px}
+  main{max-width:1100px;margin:0 auto;padding:22px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:12px;
+    padding:18px;margin-bottom:16px;box-shadow:var(--shadow)}
+  label{display:block;font-size:13px;font-weight:600;margin:0 0 6px}
+  .hint{font-weight:400;color:var(--muted);font-size:12px}
+  input,select,textarea{width:100%;background:var(--input);color:var(--fg);
+    border:1px solid var(--border);border-radius:8px;padding:9px 11px;font:inherit;font-size:14px}
+  textarea{min-height:120px;resize:vertical;font-family:ui-monospace,Menlo,monospace;font-size:13px}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+  .field{margin-bottom:14px}
+  button.btn{background:var(--accent);color:var(--accent-fg);border:none;border-radius:8px;
+    padding:10px 18px;font-weight:700;font-size:14px;cursor:pointer}
+  button.btn:disabled{opacity:.5;cursor:not-allowed}
+  button.ghost{background:none;border:1px solid var(--border);color:var(--fg);
+    border-radius:8px;padding:7px 12px;font-weight:600;font-size:13px;cursor:pointer}
+  button.ghost:hover{border-color:var(--accent)}
+  button.link{background:none;border:none;color:var(--accent);cursor:pointer;font:inherit;padding:0}
+  details.adv{margin-bottom:14px;border:1px solid var(--border);border-radius:8px;padding:10px 12px}
+  details.adv summary{cursor:pointer;font-weight:600;font-size:13px}
+  .adv .row3{margin-top:12px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+  .chip{display:flex;align-items:center;gap:8px;background:var(--input);border:1px solid var(--border);
+    border-radius:20px;padding:5px 6px 5px 12px;font-size:12px}
+  .chip.img{border-color:var(--accent)}
+  .chip img{width:26px;height:26px;object-fit:cover;border-radius:50%}
+  .chip .x{cursor:pointer;color:var(--muted);border:none;background:none;font-size:15px;padding:0 4px}
+  .drop{border:1.5px dashed var(--border);border-radius:10px;padding:16px;text-align:center;
+    color:var(--muted);font-size:13px;cursor:pointer}
+  .drop.over{border-color:var(--accent);color:var(--fg)}
+  .log{background:#0b0d11;color:#c8d1dc;border-radius:8px;padding:12px 14px;font-size:12.5px;
+    font-family:ui-monospace,Menlo,monospace;max-height:240px;overflow:auto;white-space:pre-wrap}
+  .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:6px 0}
+  .metric{background:var(--input);border:1px solid var(--border);border-radius:10px;padding:10px 12px}
+  .metric .v{font-size:20px;font-weight:700}
+  .metric .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+  pre.out{white-space:pre-wrap;background:var(--input);border:1px solid var(--border);
+    border-radius:8px;padding:12px 14px;font-size:13px;line-height:1.55;max-height:400px;overflow:auto;
+    font-family:ui-monospace,Menlo,monospace}
+  table.runs{width:100%;border-collapse:collapse;font-size:13px}
+  table.runs th,table.runs td{padding:9px 10px;text-align:left;border-bottom:1px solid var(--border)}
+  table.runs th{color:var(--muted);font-weight:600;font-size:12px}
+  table.runs tr:hover{background:rgba(127,127,127,.05)}
+  .filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:end}
+  .filters .field{margin:0}
+  .filters input,.filters select{width:auto;min-width:150px}
+  .mono{font-family:ui-monospace,Menlo,monospace;font-size:12px}
+  .pill{display:inline-block;font-size:11px;padding:1px 8px;border-radius:20px;border:1px solid var(--border)}
+  .pill.running{color:var(--warn);border-color:var(--warn)}
+  .pill.done{color:var(--good);border-color:var(--good)}
+  .pill.error{color:var(--danger);border-color:var(--danger)}
+  .cmp{display:flex;gap:14px;overflow-x:auto;padding-bottom:8px}
+  .cmpcol{min-width:280px;flex:1;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px}
+  .cmprow{display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:13px}
+  .cmprow .k{color:var(--muted)}
+  .cmprow .v.best{color:var(--accent);font-weight:700}
+  .att li{font-size:13px;margin-bottom:3px}
+  .method{color:var(--muted);font-size:11px;font-family:ui-monospace,Menlo,monospace}
+  .att-warn{color:var(--warn);font-size:11px}
+  .empty{color:var(--muted);text-align:center;padding:40px}
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-start;
+    justify-content:center;padding:40px 16px;overflow:auto;z-index:20}
+  .modal{background:var(--bg);border:1px solid var(--border);border-radius:14px;max-width:820px;
+    width:100%;padding:22px}
+  .modal h2{margin:0 0 4px}
+  .close{float:right;font-size:22px;cursor:pointer;color:var(--muted);background:none;border:none}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--card);
+    border:1px solid var(--border);border-radius:10px;padding:10px 16px;box-shadow:0 4px 20px rgba(0,0,0,.2);
+    font-size:13px;z-index:30}
+</style></head>
+<body>
+<header>
+  <h1><b>llm</b>bench <span class="hint">local AI benchmarking</span></h1>
+  <div class="sysinfo" id="sysinfo">connecting…</div>
+</header>
+<nav>
+  <button data-tab="new" class="active">New Run</button>
+  <button data-tab="runs">Runs <span class="badge" id="runsCount">0</span></button>
+  <button data-tab="compare">Compare <span class="badge" id="cmpCount">0</span></button>
+</nav>
+<main>
+  <!-- NEW RUN -->
+  <section id="tab-new">
+    <div class="card">
+      <div class="row">
+        <div class="field">
+          <label>Model <span class="hint">— locally installed</span></label>
+          <select id="model"></select>
+          <div class="hint" id="modelCaps" style="margin-top:6px"></div>
+        </div>
+        <div class="field">
+          <label>Run name <span class="hint">— optional</span></label>
+          <input id="name" placeholder="e.g. spec-sheet QA">
+        </div>
+      </div>
+      <div class="field">
+        <label>Prompt</label>
+        <textarea id="prompt" placeholder="Ask anything, or give the model a task that uses the attached files…"></textarea>
+      </div>
+      <div class="field">
+        <label>Attachments <span class="hint">— documents (pdf, docx, txt, …) are injected as context; images need a vision model</span></label>
+        <div class="drop" id="drop">Click to choose files, or drop them here</div>
+        <input type="file" id="file" multiple style="display:none">
+        <div class="chips" id="chips"></div>
+      </div>
+      <details class="adv">
+        <summary>Advanced — methodology &amp; generation options</summary>
+        <div class="row3">
+          <div class="field"><label>Measured repeats</label><input id="runs" type="number" value="3" min="1"></div>
+          <div class="field"><label>Warm-up runs</label><input id="warmup" type="number" value="1" min="0"></div>
+          <div class="field"><label>Max new tokens</label><input id="num_predict" type="number" value="256" min="1"></div>
+        </div>
+        <div class="row3">
+          <div class="field"><label>Temperature</label><input id="temperature" type="number" value="0" step="0.1" min="0"></div>
+          <div class="field"><label>Context length <span class="hint">(blank=default)</span></label><input id="num_ctx" type="number" placeholder="default" min="1"></div>
+          <div class="field"><label>Max chars/file <span class="hint">(blank=all)</span></label><input id="max_chars" type="number" placeholder="all" min="1"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label><input type="checkbox" id="cold" checked style="width:auto"> Measure cold-start load</label></div>
+          <div class="field"><label><input type="checkbox" id="think" style="width:auto"> Enable model &ldquo;thinking&rdquo; (reasoning models)</label></div>
+        </div>
+      </details>
+      <button class="btn" id="submit">Run benchmark</button>
+    </div>
+    <div id="liveWrap"></div>
+  </section>
+
+  <!-- RUNS -->
+  <section id="tab-runs" style="display:none">
+    <div class="filters">
+      <div class="field"><label>Search</label><input id="fSearch" placeholder="name, prompt, model…"></div>
+      <div class="field"><label>Model</label><select id="fModel"><option value="">All models</option></select></div>
+      <div class="field"><label>Sort by</label><select id="fSort">
+        <option value="created">Newest</option>
+        <option value="gen_tps">Gen tok/s</option>
+        <option value="ttft_ms">TTFT</option>
+      </select></div>
+      <button class="ghost" id="cmpBtn">Compare selected</button>
+      <button class="ghost" id="refresh">Refresh</button>
+    </div>
+    <div class="card" style="padding:0;overflow:auto">
+      <table class="runs"><thead><tr>
+        <th></th><th>Run</th><th>Model</th><th>Gen tok/s</th><th>TTFT</th>
+        <th>Prompt tok</th><th>Out tok</th><th>Attach</th><th>When</th><th></th>
+      </tr></thead><tbody id="runsBody"></tbody></table>
+      <div class="empty" id="runsEmpty" style="display:none">No runs yet. Start one in <b>New Run</b>.</div>
+    </div>
+  </section>
+
+  <!-- COMPARE -->
+  <section id="tab-compare" style="display:none">
+    <div id="cmpEmpty" class="empty">Select runs in the <b>Runs</b> tab, then click <b>Compare selected</b>.</div>
+    <div class="cmp" id="cmpWrap"></div>
+  </section>
+</main>
+<div id="modalRoot"></div>
+<div id="toastRoot"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const state = { models:[], runs:[], selected:new Set(), attachments:[], polling:null };
+
+function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;
+  $('#toastRoot').appendChild(t);setTimeout(()=>t.remove(),2600);}
+function fmt(v,d=1){if(v==null)return '—';return v>=100?Math.round(v):(+v).toFixed(d);}
+function fmtInt(v){return v==null?'—':Number(v).toLocaleString();}
+const IMG_EXT=['png','jpg','jpeg','gif','webp','bmp'];
+function isImg(name){return IMG_EXT.includes((name.split('.').pop()||'').toLowerCase());}
+
+// ---- tabs ----
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  for(const t of ['new','runs','compare']) $('#tab-'+t).style.display = (t===b.dataset.tab)?'':'none';
+  if(b.dataset.tab==='runs') loadRuns();
+});
+
+// ---- system + models ----
+async function init(){
+  try{
+    const d = await (await fetch('/api/models')).json();
+    // tolerate both the old string list and the new capability objects
+    state.models = (d.models||[]).map(m => typeof m==='string'
+      ? {name:m, generative:true, vision:false, embedding:false, capabilities:[]} : m);
+    const sel=$('#model'); sel.innerHTML='';
+    state.models.forEach(m=>{
+      const o=document.createElement('option');o.value=m.name;
+      const tags=[]; if(m.vision)tags.push('vision');
+      if(m.capabilities&&m.capabilities.includes('thinking'))tags.push('thinking');
+      if(m.embedding){o.textContent=`${m.name} — embedding (not benchmarkable)`;o.disabled=true;}
+      else o.textContent=tags.length?`${m.name} — ${tags.join(', ')}`:m.name;
+      sel.appendChild(o);
+    });
+    // default to the first generative model
+    const firstGen=state.models.find(m=>m.generative&&!m.embedding);
+    if(firstGen) sel.value=firstGen.name;
+    updateModelCaps();
+    const s=d.system||{};
+    const mem = s.unified_memory_mb?`${(s.unified_memory_mb/1024).toFixed(0)} GB unified`
+      : (s.vram_mb?`${(s.vram_mb/1024).toFixed(1)} GB VRAM`:'');
+    const nGen=state.models.filter(m=>m.generative&&!m.embedding).length;
+    $('#sysinfo').innerHTML = d.ok
+      ? `${s.gpu||s.machine||''} · ${mem} · ${s.accelerator||''}<br>Ollama: ${nGen} benchmarkable model${nGen===1?'':'s'}`
+      : `<span class="warn">Ollama not reachable at ${d.base_url}. Run <b>ollama serve</b>.</span>`;
+    if(!nGen) $('#submit').disabled=true;
+  }catch(e){$('#sysinfo').innerHTML='<span class="warn">API error</span>';}
+  loadRuns();
+}
+
+// ---- model capabilities hint ----
+function updateModelCaps(){
+  const m=state.models.find(x=>x.name===$('#model').value);
+  const el=$('#modelCaps'); if(!m){el.textContent='';return;}
+  if(m.vision) el.innerHTML='🖼 <b>vision-capable</b> — image attachments will be sent to this model';
+  else el.innerHTML='text-only — image attachments are ignored (documents still work)';
+}
+$('#model').onchange=updateModelCaps;
+
+// ---- attachments ----
+$('#drop').onclick=()=>$('#file').click();
+$('#file').onchange=e=>addFiles(e.target.files);
+const drop=$('#drop');
+['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over');}));
+drop.addEventListener('drop',e=>addFiles(e.dataTransfer.files));
+function addFiles(list){
+  [...list].forEach(f=>{
+    const r=new FileReader();
+    r.onload=()=>{const b64=r.result.split(',')[1];
+      state.attachments.push({filename:f.name,b64,size:f.size,dataUrl:r.result});renderChips();};
+    r.readAsDataURL(f);
+  });
+}
+function renderChips(){
+  const c=$('#chips');c.innerHTML='';
+  state.attachments.forEach((a,i)=>{
+    const chip=document.createElement('div');chip.className='chip'+(isImg(a.filename)?' img':'');
+    chip.innerHTML=(isImg(a.filename)?`<img src="${a.dataUrl}">`:'📄')+
+      `<span>${a.filename}</span><span class="hint">${(a.size/1024).toFixed(0)}KB</span>`+
+      `<button class="x" title="remove">×</button>`;
+    chip.querySelector('.x').onclick=()=>{state.attachments.splice(i,1);renderChips();};
+    c.appendChild(chip);
+  });
+}
+
+// ---- submit + live polling ----
+$('#submit').onclick=async()=>{
+  const payload={
+    model:$('#model').value, name:$('#name').value.trim(), prompt:$('#prompt').value,
+    runs:+$('#runs').value, warmup:+$('#warmup').value, num_predict:+$('#num_predict').value,
+    temperature:+$('#temperature').value, cold_start:$('#cold').checked, think:$('#think').checked,
+    num_ctx:$('#num_ctx').value?+$('#num_ctx').value:null,
+    max_chars_per_file:$('#max_chars').value?+$('#max_chars').value:null,
+    attachments:state.attachments.map(a=>({filename:a.filename,b64:a.b64})),
+  };
+  if(!payload.prompt && !payload.attachments.length){toast('Enter a prompt or add an attachment');return;}
+  $('#submit').disabled=true;
+  try{
+    const res=await (await fetch('/api/runs',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)})).json();
+    if(res.error){toast(res.error);$('#submit').disabled=false;return;}
+    pollJob(res.id);
+  }catch(e){toast('submit failed');$('#submit').disabled=false;}
+};
+
+function pollJob(id){
+  const wrap=$('#liveWrap');
+  wrap.innerHTML=`<div class="card"><div style="display:flex;align-items:center;gap:10px">
+    <span class="pill running" id="jState">running</span>
+    <b>Benchmarking…</b><span class="hint">run ${id}</span></div>
+    <div class="log" id="jLog" style="margin-top:12px"></div>
+    <div id="jDone"></div></div>`;
+  if(state.polling) clearInterval(state.polling);
+  state.polling=setInterval(async()=>{
+    let j; try{ j=await (await fetch('/api/jobs/'+id)).json(); }catch(e){return;}
+    if(!j||j.error) return;
+    const logEl=$('#jLog'); if(logEl){logEl.textContent=(j.log||[]).join('\n');logEl.scrollTop=logEl.scrollHeight;}
+    $('#jState').textContent=j.state; $('#jState').className='pill '+j.state;
+    if(j.state==='done'||j.state==='error'){
+      clearInterval(state.polling);state.polling=null;$('#submit').disabled=false;
+      if(j.state==='done'&&j.result){renderDone(j.result);toast('Run finished');}
+      else $('#jDone').innerHTML=`<p style="color:var(--danger)">Run failed. See log above.</p>`;
+      loadRuns();
+    }
+  },700);
+}
+function renderDone(m){
+  $('#jDone').innerHTML=`<div style="margin-top:14px">${metricsHtml(m.metrics)}</div>
+    <label style="margin-top:10px">Output</label><pre class="out">${esc(m.output||'(no visible output)')}</pre>
+    <div style="margin-top:10px"><button class="ghost" onclick="openRun('${m.id}')">Full detail</button>
+    <a class="ghost" style="text-decoration:none" href="/api/runs/${m.id}/report" target="_blank">Open report ↗</a></div>`;
+}
+function metricsHtml(x){
+  x=x||{};const cells=[
+    ['Gen tok/s',fmt(x.gen_tps)],['TTFT ms',fmt(x.ttft_ms)],['Prefill tok/s',fmt(x.prompt_tps)],
+    ['Prompt tok',fmtInt(x.prompt_tokens)],['Output tok',fmtInt(x.output_tokens)],
+    ['Cold load ms',fmt(x.cold_load_ms)],['Residency',x.residency||'—']];
+  return '<div class="metrics">'+cells.map(c=>`<div class="metric"><div class="v">${c[1]}</div><div class="k">${c[0]}</div></div>`).join('')+'</div>';
+}
+
+// ---- runs list ----
+async function loadRuns(){
+  try{const d=await (await fetch('/api/runs')).json();state.runs=d.runs||[];}catch(e){return;}
+  $('#runsCount').textContent=state.runs.length;
+  const models=[...new Set(state.runs.map(r=>r.model))];
+  const fm=$('#fModel');const cur=fm.value;
+  fm.innerHTML='<option value="">All models</option>'+models.map(m=>`<option>${m}</option>`).join('');
+  fm.value=cur;
+  renderRuns();
+}
+['#fSearch','#fModel','#fSort'].forEach(s=>$(s).oninput=renderRuns);
+$('#refresh').onclick=loadRuns;
+function renderRuns(){
+  const q=$('#fSearch').value.toLowerCase(),fm=$('#fModel').value,sort=$('#fSort').value;
+  let rows=state.runs.filter(r=>{
+    if(fm&&r.model!==fm)return false;
+    const hay=((r.name||'')+' '+(r.model||'')+' '+((r.prompt&&r.prompt.text)||'')).toLowerCase();
+    return hay.includes(q);
+  });
+  rows.sort((a,b)=>{
+    if(sort==='created')return (b.created||'').localeCompare(a.created||'');
+    const av=(a.metrics||{})[sort],bv=(b.metrics||{})[sort];
+    if(av==null)return 1;if(bv==null)return -1;
+    return sort==='ttft_ms'?av-bv:bv-av;
+  });
+  const body=$('#runsBody');body.innerHTML='';
+  $('#runsEmpty').style.display=rows.length?'none':'';
+  rows.forEach(r=>{
+    const m=r.metrics||{};const nAtt=((r.prompt&&r.prompt.files)||[]).length+((r.prompt&&r.prompt.images)||[]).length;
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td><input type="checkbox" ${state.selected.has(r.id)?'checked':''} data-id="${r.id}"></td>
+      <td>${r.name?esc(r.name):'<span class="hint">untitled</span>'} ${statePill(r.state)}<br>
+        <span class="hint">${esc((r.prompt&&r.prompt.text||'').slice(0,60))}</span></td>
+      <td class="mono">${esc(r.model||'')}</td>
+      <td><b>${fmt(m.gen_tps)}</b></td><td>${fmt(m.ttft_ms)}</td>
+      <td>${fmtInt(m.prompt_tokens)}</td><td>${fmtInt(m.output_tokens)}</td>
+      <td>${nAtt||'—'}</td>
+      <td class="hint">${(r.created||'').replace('T',' ').slice(5,16)}</td>
+      <td><button class="link" onclick="openRun('${r.id}')">view</button></td>`;
+    tr.querySelector('input').onchange=e=>{e.target.checked?state.selected.add(r.id):state.selected.delete(r.id);
+      $('#cmpCount').textContent=state.selected.size;};
+    body.appendChild(tr);
+  });
+  $('#cmpCount').textContent=state.selected.size;
+}
+function statePill(s){return s&&s!=='done'?`<span class="pill ${s}">${s}</span>`:'';}
+
+// ---- detail modal ----
+async function openRun(id){
+  const r=await (await fetch('/api/runs/'+id)).json();
+  if(r.error){toast('not found');return;}
+  const att=attHtml(r.attachments);
+  const html=`<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+    <button class="close" onclick="closeModal()">×</button>
+    <h2>${r.name?esc(r.name):'Untitled run'} ${statePill(r.state)}</h2>
+    <div class="hint mono">${esc(r.model)} · ${(r.created||'').replace('T',' ')}</div>
+    ${metricsHtml(r.metrics)}
+    <label>Prompt</label><pre class="out" style="max-height:160px">${esc(r.prompt&&r.prompt.text||'')}</pre>
+    ${att}
+    <label style="margin-top:10px">Output ${r.thinking_chars?`<span class="hint">(+${r.thinking_chars} thinking chars)</span>`:''}</label>
+    <pre class="out">${esc(r.output||'(no visible output)')}</pre>
+    <div style="margin-top:12px;display:flex;gap:8px">
+      <a class="ghost" style="text-decoration:none" href="/api/runs/${id}/report" target="_blank">Open report ↗</a>
+      <button class="ghost" style="color:var(--danger)" onclick="delRun('${id}')">Delete run</button>
+    </div></div></div>`;
+  $('#modalRoot').innerHTML=html;
+}
+function attHtml(a){
+  if(!a||(!(a.files||[]).length&&!(a.images||[]).length))return '';
+  let h='<label style="margin-top:10px">Attachments</label><ul class="att">';
+  (a.files||[]).forEach(f=>{h+=f.error?`<li style="color:var(--danger)">${esc(f.name)} — ${esc(f.error)}</li>`
+    :`<li><b>${esc(f.name)}</b> — ${fmtInt(f.chars)} chars (~${fmtInt(f.approx_tokens)} tok) <span class="method">${esc(f.method||'')}</span>${(f.warnings||[]).map(w=>`<div class="att-warn">⚠ ${esc(w)}</div>`).join('')}</li>`;});
+  (a.images||[]).forEach(im=>{h+=`<li>🖼 <b>${esc(im.name)}</b> ${im.bytes?`(${Math.round(im.bytes/1024)} KB)`:''}</li>`;});
+  return h+'</ul>';
+}
+function closeModal(){$('#modalRoot').innerHTML='';}
+async function delRun(id){if(!confirm('Delete this run?'))return;
+  await fetch('/api/runs/'+id,{method:'DELETE'});state.selected.delete(id);closeModal();loadRuns();toast('Deleted');}
+
+// ---- compare ----
+$('#cmpBtn').onclick=async()=>{
+  if(!state.selected.size){toast('Select some runs first');return;}
+  document.querySelector('nav button[data-tab="compare"]').click();
+  const ids=[...state.selected];
+  const runs=await Promise.all(ids.map(id=>fetch('/api/runs/'+id).then(r=>r.json())));
+  renderCompare(runs.filter(r=>!r.error));
+};
+function renderCompare(runs){
+  $('#cmpEmpty').style.display=runs.length?'none':'';
+  const wrap=$('#cmpWrap');wrap.innerHTML='';
+  const metricRows=[['gen_tps','Gen tok/s',true],['prompt_tps','Prefill tok/s',true],
+    ['ttft_ms','TTFT ms',false],['cold_load_ms','Cold load ms',false],
+    ['prompt_tokens','Prompt tok',null],['output_tokens','Output tok',null]];
+  const best={};
+  metricRows.forEach(([k,,hib])=>{if(hib==null)return;
+    const vals=runs.map(r=>(r.metrics||{})[k]).filter(v=>v!=null);
+    if(vals.length)best[k]=hib?Math.max(...vals):Math.min(...vals);});
+  runs.forEach(r=>{
+    const m=r.metrics||{};
+    const col=document.createElement('div');col.className='cmpcol';
+    col.innerHTML=`<div style="font-weight:700">${r.name?esc(r.name):'Untitled'}</div>
+      <div class="hint mono" style="margin-bottom:8px">${esc(r.model)}</div>
+      ${metricRows.map(([k,label])=>{
+        const v=m[k];const isBest=best[k]!=null&&v===best[k];
+        const disp=(k.includes('tokens'))?fmtInt(v):fmt(v);
+        return `<div class="cmprow"><span class="k">${label}</span><span class="v ${isBest?'best':''}">${disp}</span></div>`;}).join('')}
+      <div class="cmprow"><span class="k">Residency</span><span class="v">${(m.residency||'—')}</span></div>
+      <label style="margin-top:10px">Prompt</label><pre class="out" style="max-height:110px">${esc(r.prompt&&r.prompt.text||'')}</pre>
+      <label>Output</label><pre class="out" style="max-height:220px">${esc(r.output||'(none)')}</pre>`;
+    wrap.appendChild(col);
+  });
+}
+
+function esc(s){return (s==null?'':String(s)).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+window.openRun=openRun;window.closeModal=closeModal;window.delRun=delRun;
+init();
+</script>
+</body></html>

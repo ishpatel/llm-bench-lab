@@ -1,0 +1,14 @@
+{
+  "name": "quant-sweep",
+  "runs": 3,
+  "warmup": 1,
+  "measure_cold_start": true,
+  "options": { "temperature": 0, "num_predict": 256 },
+  "models": [
+    "qwen3:4b-q4_K_M",
+    "qwen3:4b-q8_0",
+    "qwen3:4b-fp16"
+  ],
+  "context_lengths": [null],
+  "prompts": ["short_qa", "reasoning", "prefill_stress"]
+}
