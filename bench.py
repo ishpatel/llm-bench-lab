@@ -129,6 +129,38 @@ def cmd_import(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_eval(args: argparse.Namespace) -> int:
+    from llmbench import evals
+    from llmbench.agent import Agent
+    from llmbench.ollama import OllamaClient
+    client = OllamaClient(base_url=args.base_url)
+    if not client.is_up():
+        print("error: Ollama not reachable", file=sys.stderr)
+        return 1
+    path = args.suite if os.path.isfile(args.suite) else os.path.join(
+        HERE, "evals", f"{args.suite}_tests.json")
+    with open(path, "r", encoding="utf-8") as f:
+        suite = json.load(f)
+    if args.model:
+        suite["answer_model"] = args.model
+
+    if "guardrail" in os.path.basename(path):
+        agent = Agent(client, suite.get("answer_model", "qwen3:4b-q4_K_M"))
+        r = evals.run_guardrail_suite(agent, suite, log=lambda m: print(m, file=sys.stderr))
+        print(f"\nGuardrails: {r['summary']['passed']}/{r['summary']['total']} passed")
+        for row in r["rows"]:
+            print(f"  [{'PASS' if row['pass'] else 'FAIL'}] {row['id']:16} ({row['expect']})")
+    else:
+        r = evals.run_rag_suite(client, suite, base_dirs=[HERE],
+                                log=lambda m: print(m, file=sys.stderr))
+        s = r["summary"]
+        print(f"\nRAG  {s['rag']['passed']}/{s['rag']['total']} passed · "
+              f"{s['rag']['hallucinations']} hallucinations · {s['rag']['grounded']} grounded")
+        print(f"RAW  {s['raw']['passed']}/{s['raw']['total']} passed · "
+              f"{s['raw']['hallucinations']} hallucinations · {s['raw']['grounded']} grounded")
+    return 0
+
+
 def cmd_report(args: argparse.Namespace) -> int:
     results = []
     for path in args.results:
@@ -173,6 +205,11 @@ def main(argv=None) -> int:
     pim = sub.add_parser("import", help="import a run bundle from another machine")
     pim.add_argument("bundle")
     pim.set_defaults(func=cmd_import)
+
+    pev = sub.add_parser("eval", help="run an evaluation suite (rag | guardrails)")
+    pev.add_argument("suite", help="'rag', 'guardrails', or a path to a suite JSON")
+    pev.add_argument("--model", default=None, help="override answer model")
+    pev.set_defaults(func=cmd_eval)
 
     prep = sub.add_parser("report", help="build HTML report from results JSON")
     prep.add_argument("results", nargs="+", help="one or more results JSON files")

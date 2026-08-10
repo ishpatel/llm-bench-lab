@@ -113,6 +113,37 @@ class OllamaClient:
             })
         return out
 
+    def chat(self, model: str, messages: List[Dict[str, Any]],
+             tools: Optional[List[Dict[str, Any]]] = None,
+             options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Non-streaming /api/chat, used for tool-calling agent turns. Returns
+        {message, tool_calls, wall_ms, eval_ms, output_tokens, gen_tps}."""
+        opts = dict(options or {})
+        payload: Dict[str, Any] = {"model": model, "messages": messages,
+                                   "stream": False}
+        if "think" in opts:
+            payload["think"] = opts.pop("think")
+        payload["options"] = opts
+        if tools:
+            payload["tools"] = tools
+        t0 = time.perf_counter()
+        data = self._post("/api/chat", payload)
+        wall = (time.perf_counter() - t0) * 1000.0
+        msg = data.get("message", {}) or {}
+        eval_ms = (data.get("eval_duration") or 0) / NS_PER_MS
+        n_out = data.get("eval_count")
+        gen_tps = (n_out / (data.get("eval_duration") / NS_PER_S)
+                   if n_out and data.get("eval_duration") else None)
+        return {
+            "message": msg,
+            "tool_calls": msg.get("tool_calls") or [],
+            "content": msg.get("content", ""),
+            "wall_ms": wall,
+            "eval_ms": eval_ms,
+            "output_tokens": n_out,
+            "gen_tps": gen_tps,
+        }
+
     def embed(self, model: str, inputs: List[str]) -> Dict[str, Any]:
         """Embed one or more strings via /api/embed. Returns
         {embeddings: [[...]], total_ms, prompt_tokens}."""

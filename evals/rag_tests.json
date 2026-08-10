@@ -1,0 +1,22 @@
+{
+  "docs": ["configs/docs/rtx-spec.md"],
+  "embed_model": "embeddinggemma",
+  "answer_model": "qwen3:4b-q4_K_M",
+  "k": 4,
+  "tests": [
+    {"id": "vram",       "bucket": "answerable", "question": "How much VRAM does the RTX 5070 Laptop GPU have?", "expect_contains": ["8 gb"]},
+    {"id": "bandwidth",  "bucket": "answerable", "question": "What is the memory bandwidth of the RTX 5070 Laptop GPU?", "expect_contains": ["384"]},
+    {"id": "cuda_cores", "bucket": "answerable", "question": "How many CUDA cores does the RTX 5070 Laptop GPU have?", "expect_contains": ["4608"]},
+    {"id": "tensor_gen", "bucket": "answerable", "question": "What generation of Tensor Cores does it use?", "expect_contains": ["5th"]},
+    {"id": "boost",      "bucket": "answerable", "question": "What is the boost clock of the RTX 5070 Laptop GPU?", "expect_contains": ["2100"]},
+    {"id": "tgp_range",  "bucket": "answerable", "question": "What is the configurable TGP range in watts?", "expect_contains": ["65", "115"]},
+
+    {"id": "long_ctx",   "bucket": "ambiguous",  "question": "Can it run an 8B model with long context comfortably?", "expect_contains": ["short"]},
+    {"id": "creator",    "bucket": "ambiguous",  "question": "Is this GPU aimed at creator laptops?", "expect_contains": ["creator"]},
+
+    {"id": "price",      "bucket": "impossible", "question": "What is the US retail price in dollars of the RTX 5070 laptop?"},
+    {"id": "release",    "bucket": "impossible", "question": "What is the exact release date of the RTX 5070 laptop?"},
+    {"id": "rt_cores",   "bucket": "impossible", "question": "How many ray-tracing (RT) cores does the RTX 5070 Laptop GPU have?"},
+    {"id": "vs_4090",    "bucket": "impossible", "question": "Is the RTX 5070 laptop faster than an RTX 4090 desktop GPU?"}
+  ]
+}

@@ -77,6 +77,7 @@ python bench.py report results/quant-sweep_*.json --out results/report.html
 | `report RESULTS...` | Build an HTML report; pass **multiple** files to compare systems |
 | `export RUN_ID` | Export a web-UI run to a portable `.llmbench.json` bundle |
 | `import BUNDLE` | Import a run bundle from another machine |
+| `eval SUITE` | Run an evaluation suite (`rag`, `guardrails`, or a JSON path) |
 
 Useful flags: `run --label "<name>"` (system label shown in the report),
 `run --runs N` (override measured repeats), `--base-url` (remote Ollama).
@@ -204,6 +205,44 @@ documents ─(extract.py)→ text ─(chunk)→ chunks ─(Ollama embed)→ vect
 Scriptable equivalents exist in `llmbench/rag.py` (`build_kb`, `retrieve`,
 `build_grounded_prompt`). Knowledge bases live in `kb/<name>/` and are gitignored.
 
+## Agent harness + guardrails (Phases 8–9)
+
+The **Agent** tab is a small agent with two tools and deterministic guardrails
+around every action. Core principle: **the model proposes, deterministic code
+authorizes** — the LLM may *request* an action, but plain Python decides whether
+it runs (never the model).
+
+- Tools: `get_gpu_status` (read-only, runs freely) and `set_power_limit`
+  (bounded 80–115 W, schema-validated, **requires human approval**, and even
+  then simulated — no hardware is touched).
+- Rails (`llmbench/guardrails.py`), following NeMo Guardrails' categories:
+  **input** (prompt-injection / disallowed-intent detection, before the model),
+  **tool allowlist** (unregistered tools refused — least privilege),
+  **parameter** (type + bounds validation), **approval** (consequential actions
+  gated), and **output** (secret-leak check).
+- The tab shows a live **guardrail & tool trace**: which rail fired, what was
+  executed, what was blocked.
+
+## Evaluation harness (Phases 7 & 10)
+
+The **Evals** tab turns behaviour into measured evidence — validation applied to
+AI. Two suites (`evals/*.json`), runnable in the UI or via
+`python bench.py eval rag|guardrails`:
+
+- **RAG suite (Phase 7):** answerable / ambiguous / impossible question buckets,
+  scored **with retrieval vs the raw model** on correct answers, groundedness
+  (citations), and — critically — **correct abstention** when the corpus lacks
+  the answer. A representative result on the sample corpus: RAG **12/12** with
+  **0 hallucinations**, raw model **0/12** with **6 hallucinations** — because
+  the specs are private, the model *can't* answer them without retrieval.
+- **Guardrail suite (Phase 10):** adversarial inputs (injection, forbidden
+  actions, out-of-range tool args, approval-gated actions), scored on **outcome**
+  (defense in depth — the unsafe action must not happen, whichever rail stops
+  it). Sample result: **7/7** prevented.
+
+Scoring is deterministic (keyword + abstention detection), so results are
+reproducible rather than dependent on an LLM judge.
+
 ## Methodology (what makes the numbers defensible)
 
 - **Warm-up runs** (`warmup`) are executed and discarded before measurement.
@@ -269,6 +308,9 @@ llmbench/
   extract.py            document text extraction (pdf/docx/pptx/xlsx/…)
   attachments.py        inject reference docs, encode images
   rag.py                Copilot RAG: chunk, embed, cosine retrieval, grounding
+  agent.py              agent harness: tools + model→tool→observation loop
+  guardrails.py         deterministic rails: input/tool/param/approval/output
+  evals.py              evaluation harness: RAG + guardrail scorers
   config.py             config + prompt loading/validation
   runner.py             matrix expansion, methodology, aggregation
   report.py             self-contained HTML + inline SVG charts
@@ -278,19 +320,30 @@ llmbench/
   web/index.html        the single-page web UI
 configs/                benchmark configs + prompt set
   docs/                 sample reference documents for task benchmarks
+evals/                  evaluation suites (rag_tests.json, guardrails_tests.json)
 results/                CLI output JSON + generated HTML reports
 runs/                   web-UI run history (one folder per run)
 kb/                     Copilot knowledge bases (one folder per KB)
 ```
 
-## Roadmap (next phases)
+## The full local-AI stack, built end to end
 
-Built so far: the benchmarking harness, task-based benchmarking with document +
-image attachments, cross-system comparison, and the **Copilot** (local RAG).
-Planned next, each building on this foundation: a tool-use / agent harness,
-deterministic guardrails (input / retrieval / execution / output rails), and an
-evaluation harness that scores task success, groundedness, and correct
-abstention — turning raw speed numbers into a full local-AI product story.
+This project walks the entire local-AI stack rather than just "an LLM on a GPU":
+
+1. **Benchmarking** — TTFT, throughput, cold-start, memory residency, with a
+   defensible methodology.
+2. **Task benchmarking** — real prompts with document + image attachments.
+3. **Cross-system** — RTX vs Apple Silicon, VRAM-wall detection.
+4. **Copilot (RAG)** — chunk → embed → retrieve → grounded, cited answers.
+5. **Agent harness** — model + tools + execution loop.
+6. **Guardrails** — deterministic input/tool/param/approval/output rails.
+7. **Evaluation** — groundedness, correct abstention, and guardrail enforcement,
+   scored reproducibly.
+
+The throughline: **the model is one component of an AI product — not the
+product.** Model quality, quantization, memory residency, retrieval, harness
+design, guardrails, and evaluation all shape the result, and this tool measures
+each of them.
 
 ## License
 

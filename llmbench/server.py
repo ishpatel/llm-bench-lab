@@ -24,9 +24,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import parse_qs, urlparse
 
+from . import evals as evals_mod
 from . import rag as rag_mod
 from . import report as report_mod
 from . import telemetry
+from .agent import Agent
 from .jobs import JobManager
 from .ollama import OllamaClient
 from .rag import RagStore
@@ -74,6 +76,7 @@ class BenchServer:
 
     def __init__(self, base_url: str, project_root: str):
         self.base_url = base_url
+        self.project_root = project_root
         self.client = OllamaClient(base_url=base_url)
         self.store = RunStore(os.path.join(project_root, "runs"))
         self.rag = RagStore(os.path.join(project_root, "kb"))
@@ -248,6 +251,40 @@ class BenchServer:
         }
 
 
+    # -- Agent harness (Phase 8/9) + eval harness (Phase 7/10) -------------
+    def run_agent(self, question: str, model: str, approve: bool) -> Dict[str, Any]:
+        agent = Agent(self.client, model)
+        res = agent.run(question, approve=approve)
+        return {"answer": res.answer, "blocked": res.blocked, "steps": res.steps,
+                "wall_ms": round(res.wall_ms, 1), "events": res.events,
+                "output_flag": res.output_flag}
+
+    def start_eval(self, payload: Dict[str, Any]) -> str:
+        job_id = "eval-" + self.new_id()
+        self.jobs.submit(job_id, self._eval_job(payload), kind="eval")
+        return job_id
+
+    def _eval_job(self, payload: Dict[str, Any]):
+        server = self
+
+        def fn(log):
+            suite_name = payload.get("suite", "rag")
+            path = os.path.join(server.project_root, "evals",
+                                f"{suite_name}_tests.json")
+            with open(path, "r", encoding="utf-8") as f:
+                suite = json.load(f)
+            if payload.get("answer_model"):
+                suite["answer_model"] = payload["answer_model"]
+            if "guardrail" in suite_name:
+                agent = Agent(server.client,
+                              suite.get("answer_model", "qwen3:4b-q4_K_M"))
+                return evals_mod.run_guardrail_suite(agent, suite, log=log)
+            return evals_mod.run_rag_suite(
+                server.client, suite, base_dirs=[server.project_root], log=log)
+
+        return fn
+
+
 class Handler(BaseHTTPRequestHandler):
     server_app: BenchServer = None  # set by make_handler
 
@@ -359,6 +396,16 @@ class Handler(BaseHTTPRequestHandler):
                                  payload.get("model", ""),
                                  int(payload.get("k", 4)), opts)
                 return self._json(res, 400 if res.get("error") else 200)
+            if path == "/api/agent/ask":
+                payload = self._read_json()
+                if not payload.get("model"):
+                    return self._json({"error": "model is required"}, 400)
+                return self._json(app.run_agent(
+                    payload.get("question", ""), payload["model"],
+                    bool(payload.get("approve", False))))
+            if path == "/api/evals/run":
+                payload = self._read_json()
+                return self._json({"job_id": app.start_eval(payload)})
             self._json({"error": "not found"}, 404)
         except Exception as e:  # noqa: BLE001
             self._json({"error": f"{type(e).__name__}: {e}"}, 500)
