@@ -268,16 +268,20 @@
         </div>
       </div>
       <div class="field">
-        <label><input type="checkbox" id="trt" style="width:auto"> TensorRT-LLM backend <span class="hint">(NVIDIA RTX hardware)</span></label>
-        <div class="help" id="trtHelp">Benchmark through NVIDIA's TensorRT-LLM engine instead of Ollama.
-          Start <span class="mono">trtllm-serve</span> (or an NVIDIA NIM container) on the RTX machine and
-          connect to it; the same prompt then runs on the TensorRT engine, so you can compare it
-          head-to-head with Ollama.</div>
+        <label><input type="checkbox" id="trt" style="width:auto"> OpenAI-compatible backend <span class="hint">(TensorRT-LLM, NIM, vLLM)</span></label>
+        <div class="help" id="trtHelp">Benchmark through another inference engine instead of Ollama. Any
+          server speaking the OpenAI-compatible API works: NVIDIA's <span class="mono">trtllm-serve</span>
+          (TensorRT-LLM), a NIM container, or vLLM. The same prompt then runs on that engine, so you can
+          compare engines head-to-head on one GPU.</div>
         <div id="trtRow" style="display:none;margin-top:6px">
-          <div class="row" style="align-items:end">
+          <div class="row3" style="align-items:end">
             <div class="field" style="margin:0">
               <label>Endpoint URL</label>
               <input id="trtUrl" placeholder="http://localhost:8000" value="http://localhost:8000">
+            </div>
+            <div class="field" style="margin:0">
+              <label>Engine name <span class="hint">(labels the run)</span></label>
+              <input id="trtLabel" placeholder="TensorRT-LLM" value="TensorRT-LLM">
             </div>
             <div class="field" style="margin:0"><button class="ghost" id="trtCheck">Check connection</button></div>
           </div>
@@ -727,7 +731,7 @@ async function init(){
 
 function updateModelCaps(){
   const el=$('#modelCaps');
-  if(state.trtActive){el.textContent='Model list comes from the TensorRT-LLM endpoint.';return;}
+  if(state.trtActive){el.textContent='Model list comes from the connected endpoint.';return;}
   const m=state.models.find(x=>x.name===$('#model').value);
   if(!m){el.textContent='';return;}
   if(m.vision)el.innerHTML='🖼 <b>Vision-capable</b>: attached images will be shown to this model.';
@@ -735,13 +739,13 @@ function updateModelCaps(){
 }
 $('#model').onchange=updateModelCaps;
 
-/* ---------------- TensorRT-LLM backend ---------------- */
+/* ---------------- OpenAI-compatible backend (TensorRT-LLM, NIM, vLLM) ---------------- */
 state.trtActive=false; state.savedModelHtml=null;
 function trtHelpDefault(){
   const nv=state.deep&&/NVIDIA/i.test(((state.deep.env||{}).backend)||'');
   $('#trtHelp').innerHTML = nv
-    ? 'Benchmark through NVIDIA\'s TensorRT-LLM engine instead of Ollama. Start <span class="mono">trtllm-serve</span> (or an NVIDIA NIM container) and connect; the same prompt then runs on the TensorRT engine, so you can compare it head-to-head with Ollama on this GPU.'
-    : 'Needs NVIDIA RTX hardware to run. This machine uses Apple Metal, so local runs stay on Ollama, but you can still connect to a TensorRT-LLM endpoint served from an RTX machine on your network (start <span class="mono">trtllm-serve</span> there and enter its address).';
+    ? 'Benchmark through another engine instead of Ollama. On this NVIDIA GPU, start <span class="mono">trtllm-serve</span> (TensorRT-LLM) or a NIM container and connect; the same prompt then runs on that engine, so you can compare engines head-to-head on this GPU.'
+    : 'Runs on this machine stay on Ollama (Apple Metal), but you can benchmark a remote engine: start <span class="mono">trtllm-serve</span> (TensorRT-LLM), a NIM container, or vLLM on another machine and enter its address. Note TensorRT-LLM needs NVIDIA hardware and is Linux-first.';
 }
 $('#trt').onchange=()=>{
   const on=$('#trt').checked;
@@ -760,7 +764,7 @@ async function checkTrt(){
   const url=($('#trtUrl').value||'http://localhost:8000').trim();
   $('#trtStatus').textContent='checking '+url+' …';
   let st;
-  try{st=await (await fetch('/api/trt/status?url='+encodeURIComponent(url))).json();}
+  try{st=await (await fetch('/api/backend/status?url='+encodeURIComponent(url))).json();}
   catch(e){$('#trtStatus').innerHTML='<span style="color:var(--bad)">Could not query the endpoint.</span>';return;}
   const ep=st.endpoint||{};
   const facts=[];
@@ -772,11 +776,11 @@ async function checkTrt(){
     const sel=$('#model');
     sel.innerHTML=(ep.models&&ep.models.length?ep.models:['(endpoint lists no models)']).map(m=>`<option>${esc(m)}</option>`).join('');
     $('#trtStatus').innerHTML='<span style="color:var(--good)">Connected.</span> '
-      +(ep.models?ep.models.length:0)+' model(s) served by the endpoint. Runs will use this engine and are labeled TensorRT-LLM. ('+facts.join(' · ')+')';
+      +(ep.models?ep.models.length:0)+' model(s) served by the endpoint. Runs will use this engine and are labeled &ldquo;'+esc(($('#trtLabel').value||'OpenAI-compatible').trim())+'&rdquo;. ('+facts.join(' · ')+')';
     updateModelCaps();
   }else{
     state.trtActive=false;
-    $('#trtStatus').innerHTML='<span style="color:var(--bad)">Not reachable at '+esc(url)+'.</span> Start it with <span class="mono">trtllm-serve &lt;model&gt;</span> (or a NIM container), then check again. ('+facts.join(' · ')+')';
+    $('#trtStatus').innerHTML='<span style="color:var(--bad)">Not reachable at '+esc(url)+'.</span> Start the server (<span class="mono">trtllm-serve &lt;model&gt;</span>, a NIM container, or vLLM), then check again. ('+facts.join(' · ')+')';
   }
 }
 
@@ -818,9 +822,10 @@ $('#submit').onclick=async()=>{
     attachments:state.attachments.map(a=>({filename:a.filename,b64:a.b64})),
   };
   if($('#trt').checked){
-    if(!state.trtActive){toast('Check the TensorRT-LLM connection first');return;}
-    payload.engine='trtllm';
+    if(!state.trtActive){toast('Check the endpoint connection first');return;}
+    payload.engine='openai';
     payload.engine_url=($('#trtUrl').value||'http://localhost:8000').trim();
+    payload.engine_label=($('#trtLabel').value||'OpenAI-compatible').trim();
   }
   if(!payload.prompt&&!payload.attachments.length){toast('Enter a prompt or add an attachment');return;}
   $('#submit').disabled=true;

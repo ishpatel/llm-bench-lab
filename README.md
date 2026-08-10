@@ -130,45 +130,61 @@ python bench.py report results/quant-sweep_*.json --out results/report.html
 Useful flags: `run --label "<name>"` (system label shown in the report),
 `run --runs N` (override measured repeats), `--base-url` (remote Ollama).
 
-## TensorRT-LLM backend (NVIDIA RTX)
+## OpenAI-compatible inference backends (TensorRT-LLM / NIM / vLLM)
 
-By default llmbench benchmarks through Ollama, whose engine is llama.cpp. On
-NVIDIA RTX hardware you can instead route runs through **NVIDIA's TensorRT-LLM**
-stack and compare the two engines head-to-head on the same GPU, same model,
-same prompt.
+By default llmbench benchmarks through Ollama, whose engine is llama.cpp. It can
+also route runs through any server that speaks the **OpenAI-compatible API**, so
+you can put two engines head-to-head on the same GPU, model and prompt. The
+`backends.py` client is a generic OpenAI-compatible client, not tied to one
+vendor; **NVIDIA TensorRT-LLM** (via `trtllm-serve` or an NVIDIA NIM container)
+is the headline use, and vLLM or even Ollama's own `/v1` work identically.
 
-How it works, honestly: Ollama has no TensorRT mode, so this is not a flag
-inside Ollama. TensorRT-LLM ships its own server (`trtllm-serve`, and NVIDIA
-NIM containers) that exposes an OpenAI-compatible API, and llmbench speaks that
-protocol as an alternate engine.
+Ollama has no TensorRT mode, so this is not a flag inside Ollama. TensorRT-LLM
+ships its own server that exposes the compatible API, and llmbench connects to
+it as an alternate engine.
 
-1. On the RTX machine, serve a model with TensorRT-LLM (Linux or WSL2):
+1. On the RTX machine, serve a model (TensorRT-LLM is Linux-first; use WSL2 on
+   Windows):
    ```bash
    pip install tensorrt-llm
-   trtllm-serve <model>          # OpenAI-compatible API on port 8000
+   trtllm-serve <hf-model>       # OpenAI-compatible API on port 8000
    ```
-   An NVIDIA NIM container works the same way.
-2. In **New Run**, tick **TensorRT-LLM backend**, enter the endpoint URL, and
-   press **Check connection**. The model list switches to what the endpoint
-   serves.
-3. Run the benchmark. The run is labeled with the TensorRT-LLM engine in its
-   detail view and report, so Ollama and TensorRT results never get mixed up.
+   An NVIDIA NIM container or a vLLM server works the same way.
+2. In **New Run**, tick **OpenAI-compatible backend**, enter the endpoint URL,
+   and press **Check connection**. The model list switches to what the endpoint
+   serves, and you name the engine (e.g. "TensorRT-LLM").
+3. Run the benchmark. The run is labeled with that engine in its detail view and
+   report, so Ollama and TensorRT results never get mixed up.
 
 Notes:
-- Speed metrics (TTFT, generation tok/s, token counts) are measured the same
-  way as Ollama runs. Cold start is skipped because the external engine manages
-  its own model loading, and `ollama ps` residency does not apply; on NVIDIA
-  machines the `nvidia-smi` sampler still reports GPU utilization and VRAM.
-- The endpoint can be remote: a Mac can drive benchmarks against an RTX
-  machine's `trtllm-serve` over the network.
-- `GET /api/trt/status?url=...` reports the honest facts: NVIDIA GPU present,
-  python `tensorrt` importable, endpoint reachable. TensorRT requires NVIDIA
-  hardware, so on Apple Silicon the first two are always false.
-- CLI configs can use the same engine with
+- Speed metrics (TTFT, generation tok/s, token counts) are measured the same way
+  as Ollama runs. Cold start is skipped because the external engine manages its
+  own model loading, and `ollama ps` residency does not apply; on NVIDIA machines
+  the `nvidia-smi` sampler still reports GPU utilization and VRAM.
+- The endpoint can be remote: a Mac can drive benchmarks against an RTX machine's
+  server over the network.
+- `GET /api/backend/status?url=...` reports the honest facts: NVIDIA GPU present,
+  python `tensorrt` importable, endpoint reachable and its model list.
+- CLI configs use the same engine with
   `"backend": {"type": "openai", "base_url": "http://host:8000", "label": "TensorRT-LLM"}`.
-- Any OpenAI-compatible server works (vLLM, NIM, even Ollama's own `/v1`),
-  which is how the code path is exercised in CI-style checks on machines
-  without NVIDIA hardware.
+- Model formats differ across engines. TensorRT-LLM builds engines from
+  HuggingFace checkpoints, not the GGUF files Ollama uses, so an engine
+  head-to-head compares the same architecture and parameter count, **not** an
+  identical quantization. State that in any writeup.
+
+### TensorRT-LLM vs TensorRT for RTX (they are different products)
+
+Worth keeping straight, especially in an NVIDIA conversation:
+
+- **TensorRT-LLM** is the LLM-specialized serving/inference stack. It is
+  Linux-focused and exposes `trtllm-serve`, OpenAI-compatible serving, and
+  KV-cache management. This is what the backend above connects to.
+- **TensorRT for RTX** is NVIDIA's lightweight **client** inference runtime for
+  RTX PCs (Windows x64, Blackwell included). It is meant to be embedded in an
+  application through ONNX Runtime / Windows ML, using portable ahead-of-time
+  engines with device-specific JIT optimization on the user's machine. It does
+  not ship an LLM server, so it is a separate client-runtime experiment rather
+  than a drop-in backend here.
 
 ## Cross-system comparison (RTX vs Apple Silicon)
 

@@ -131,23 +131,25 @@ class BenchServer:
                 opts["think"] = bool(payload["think"])
             num_ctx = payload.get("num_ctx")
 
-            # Optional TensorRT-LLM engine (any OpenAI-compatible endpoint).
+            # Optional alternate engine: any OpenAI-compatible endpoint
+            # (TensorRT-LLM via trtllm-serve, NVIDIA NIM, vLLM, ...).
             backend = None
             engine_name = "Ollama"
-            if payload.get("engine") == "trtllm":
+            if payload.get("engine") == "openai":
                 url = (payload.get("engine_url") or "").strip()
                 if not url:
-                    raise RuntimeError("TensorRT-LLM endpoint URL is required "
-                                       "when the TensorRT backend is enabled.")
+                    raise RuntimeError("An endpoint URL is required when the "
+                                       "OpenAI-compatible backend is enabled.")
                 from .backends import OpenAICompatClient
                 if not OpenAICompatClient(url).is_up():
                     raise RuntimeError(
-                        f"TensorRT-LLM endpoint not reachable at {url}. Start "
-                        f"trtllm-serve (or a NIM container) and check the URL.")
-                backend = {"type": "openai", "base_url": url,
-                           "label": "TensorRT-LLM"}
-                engine_name = "TensorRT-LLM (OpenAI-compatible)"
-                log(f"engine: TensorRT-LLM endpoint at {url}")
+                        f"Endpoint not reachable at {url}. Start the server "
+                        f"(e.g. trtllm-serve, a NIM container, or vLLM) and "
+                        f"check the URL.")
+                label = (payload.get("engine_label") or "").strip() or "OpenAI-compatible"
+                backend = {"type": "openai", "base_url": url, "label": label}
+                engine_name = f"{label} (OpenAI-compatible)"
+                log(f"engine: {label} endpoint at {url}")
 
             cfg = {
                 "name": payload.get("name") or "run",
@@ -363,7 +365,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"kb": app.rag.list()})
             if path == "/api/system":
                 return self._json(telemetry.describe_system_deep())
-            if path == "/api/trt/status":
+            if path in ("/api/backend/status", "/api/trt/status"):
                 qs = parse_qs(urlparse(self.path).query)
                 url = (qs.get("url", [None])[0] or "").strip()
                 status = telemetry.tensorrt_status()
