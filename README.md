@@ -239,3 +239,7 @@ This is the benchmarking foundation. Planned additions, each building on it:
 RAG copilot over local docs, a tool-use harness, deterministic guardrails, and
 an evaluation harness that scores task success / groundedness / correct
 abstention — turning raw speed numbers into a full local-AI product story.
+
+## License
+
+Released under the [MIT License](LICENSE).
