@@ -1,9 +1,9 @@
 """Self-contained HTML report generation.
 
-Takes one or more results dicts (from the runner / results JSON files), groups
-cells by system, and renders a single dependency-free HTML file with inline
-SVG charts comparing generation throughput, TTFT and prefill throughput across
-systems — exactly the one-page readout the plan calls for.
+Takes one or more results dicts (from the runner or results JSON files), groups
+cells by system, and renders a single dependency-free HTML file with inline SVG
+charts plus plain-English interpretation, so a non-expert reader can tell what
+the numbers mean and whether they are good.
 """
 from __future__ import annotations
 
@@ -14,6 +14,32 @@ from typing import Any, Dict, List, Optional, Tuple
 
 # NVIDIA green first, Apple graphite second, then fallbacks.
 PALETTE = ["#76b900", "#8e8e93", "#0a84ff", "#ff9f0a", "#bf5af2", "#ff375f"]
+
+
+# --------------------------------------------------------------------------
+# Plain-English interpretation of a measurement
+# --------------------------------------------------------------------------
+def speed_verdict(v: Optional[float]) -> Tuple[str, str]:
+    if v is None:
+        return ("", "")
+    if v >= 80:
+        return ("Feels instant, outpaces reading speed", "good")
+    if v >= 30:
+        return ("Smooth, a comfortable reading pace", "good")
+    if v >= 10:
+        return ("Workable, but you wait on it", "ok")
+    return ("Sluggish; the model may not fit on the GPU", "bad")
+
+
+def residency_verdict(res: str) -> Tuple[str, str]:
+    if not res:
+        return ("", "")
+    low = res.lower()
+    if "100%" in low and "gpu" in low:
+        return ("Fully on the GPU, the fastest path", "good")
+    if "cpu" in low:
+        return ("Spilled to CPU, this is the VRAM wall", "bad")
+    return (res, "neutral")
 
 
 # --------------------------------------------------------------------------
@@ -156,13 +182,21 @@ def build_report(results: List[Dict[str, Any]], title: str = "Local AI Benchmark
         return out
 
     charts = []
-    for metric, unit, hib, cname in [
-        ("gen_tps", "tokens/sec", True, "Generation throughput"),
-        ("ttft_ms", "ms", False, "Time to first token (cold-start excluded)"),
-        ("prompt_tps", "tokens/sec", True, "Prompt / prefill throughput"),
+    for metric, unit, hib, cname, blurb in [
+        ("gen_tps", "tokens/sec", True, "Generation speed",
+         "How fast the answer streams out. One token is about ¾ of a word, so "
+         "80 tok/s is roughly 60 words a second, faster than anyone reads."),
+        ("ttft_ms", "ms", False, "Time to first token",
+         "The wait before the first word appears (warm runs; cold start is "
+         "measured separately). Under 300 ms feels instant."),
+        ("prompt_tps", "tokens/sec", True, "Prompt reading speed",
+         "How fast the model ingests the prompt and any attachments. This only "
+         "matters much when you feed it long documents."),
     ]:
-        svg = _svg_bars(cname, unit, categories, series_for(metric), hib)
-        charts.append(f'<section class="card">{svg}{_legend(series_for(metric))}</section>')
+        series = series_for(metric)
+        svg = _svg_bars(cname, unit, categories, series, hib)
+        charts.append(f'<section class="card"><p class="blurb">{html.escape(blurb)}</p>'
+                      f'{svg}{_legend(series)}</section>')
 
     # System info cards
     sys_cards = []
@@ -210,24 +244,24 @@ def _detail_table(systems, categories, table, color_of) -> str:
     body = []
     for c in categories:
         cells = []
-        residency = ""
         for s in systems:
             cell = table[s].get(c)
             if not cell:
-                cells.append('<td class="na">—</td>')
+                cells.append('<td class="na">not run</td>')
                 continue
             agg = cell.get("aggregate", {})
             gen = _median(agg, "gen_tps")
             ttft = _median(agg, "ttft_ms")
             sp = _spread(agg, "gen_tps")
             res = cell.get("residency", "")
-            if res:
-                residency = res
-            spread_s = f' <span class="sp">[{_fmt(sp[0])}–{_fmt(sp[1])}]</span>' if sp else ""
+            gv, gcls = speed_verdict(gen)
+            spread_s = (f' <span class="sp">(range {_fmt(sp[0])} to {_fmt(sp[1])})</span>'
+                        if sp else "")
+            verdict = f'<div class="verdict {gcls}">{html.escape(gv)}</div>' if gv else ""
             cells.append(
-                f'<td><b>{_fmt(gen) if gen else "—"}</b> tok/s{spread_s}<br>'
-                f'<span class="muted">TTFT {_fmt(ttft) if ttft else "—"} ms · '
-                f'{html.escape(res or "?")}</span></td>'
+                f'<td><b class="sv-{gcls}">{_fmt(gen) if gen else "not run"}</b> tok/s{spread_s}<br>'
+                f'<span class="muted">first token {_fmt(ttft) if ttft else "—"} ms · '
+                f'{html.escape(res or "unknown")}</span>{verdict}</td>'
             )
         body.append(f'<tr><td class="rowlabel">{html.escape(c)}</td>{"".join(cells)}</tr>')
     return (f'<table class="detail"><thead><tr><th>Configuration</th>{head}</tr></thead>'
@@ -254,7 +288,7 @@ def _attachment_html(attach: Dict[str, Any]) -> str:
         rows = []
         for f in files:
             if f.get("error"):
-                rows.append(f'<li class="att-err">{html.escape(f["name"])} — '
+                rows.append(f'<li class="att-err">{html.escape(f["name"])}: '
                             f'{html.escape(f["error"])}</li>')
             else:
                 trunc = " · truncated" if f.get("truncated") else ""
@@ -265,7 +299,7 @@ def _attachment_html(attach: Dict[str, Any]) -> str:
                 warn_s = "".join(
                     f'<div class="att-warn">⚠ {html.escape(w)}</div>' for w in warns)
                 rows.append(
-                    f'<li><b>{html.escape(f["name"])}</b> — {f["chars"]:,} chars '
+                    f'<li><b>{html.escape(f["name"])}</b>: {f["chars"]:,} chars '
                     f'(~{f["approx_tokens"]:,} tokens{trunc}){method_s}{warn_s}</li>')
         bits.append(f'<div class="att"><span class="att-h">Reference files</span>'
                     f'<ul>{"".join(rows)}</ul></div>')
@@ -274,7 +308,7 @@ def _attachment_html(attach: Dict[str, Any]) -> str:
         thumbs = []
         for im in images:
             if im.get("error"):
-                thumbs.append(f'<span class="att-err">{html.escape(im["name"])} — '
+                thumbs.append(f'<span class="att-err">{html.escape(im["name"])}: '
                               f'{html.escape(im["error"])}</span>')
             elif im.get("data_uri"):
                 thumbs.append(
@@ -316,14 +350,14 @@ def _outputs_section(systems, categories, table) -> str:
                 meta.append(f'{r["thinking_chars"]:,} thinking chars')
             meta_s = " · ".join(meta)
             if not text.strip():
-                body = ('<em class="muted">No visible output — the model spent its '
-                        'token budget on reasoning. Raise num_predict or set '
-                        '"think": false to capture a final answer.</em>')
+                body = ('<em class="muted">No visible output: the model spent its '
+                        'token budget on reasoning. Raise the answer-length cap or '
+                        'turn off thinking to capture a final answer.</em>')
             else:
                 body = f'<pre class="resp">{html.escape(text)}</pre>'
             responses.append(
                 f'<details><summary>{html.escape(s)} '
-                f'<span class="muted">— {html.escape(meta_s)}</span></summary>'
+                f'<span class="muted">· {html.escape(meta_s)}</span></summary>'
                 f'{body}</details>')
 
         cards.append(
@@ -375,6 +409,19 @@ _PAGE = """<!DOCTYPE html>
   table.kv td:first-child {{ color:var(--muted); width:42%; }}
   .card {{ background:var(--card); border:1px solid var(--border);
     border-radius:12px; padding:16px 18px; margin-bottom:18px; overflow-x:auto; }}
+  .blurb {{ margin:0 0 12px; color:var(--muted); font-size:13px; max-width:820px; }}
+  .lead {{ color:var(--muted); font-size:14px; max-width:820px; margin:0 0 22px; }}
+  .glossary {{ background:var(--card); border:1px solid var(--border);
+    border-radius:12px; padding:14px 18px; margin-bottom:24px; }}
+  .glossary summary {{ cursor:pointer; font-weight:600; font-size:14px; }}
+  .glossary dl {{ margin:12px 0 0; display:grid; grid-template-columns:180px 1fr; gap:7px 16px; font-size:13px; }}
+  .glossary dt {{ font-weight:600; }}
+  .glossary dd {{ margin:0; color:var(--muted); }}
+  @media (max-width:640px) {{ .glossary dl {{ grid-template-columns:1fr; }} .glossary dt {{ margin-top:6px; }} }}
+  .verdict {{ font-size:11px; font-weight:600; margin-top:3px; }}
+  .verdict.good {{ color:#2f9e44; }} .verdict.ok {{ color:#b07d00; }}
+  .verdict.bad {{ color:#d64545; }} .verdict.neutral {{ color:var(--muted); font-weight:400; }}
+  .sv-good {{ color:#2f9e44; }} .sv-ok {{ color:#b07d00; }} .sv-bad {{ color:#d64545; }}
   .chart {{ width:100%; height:auto; }}
   .chart-title {{ font-size:15px; font-weight:600; fill:var(--fg); }}
   .chart-unit {{ font-weight:400; fill:var(--muted); font-size:12px; }}
@@ -430,20 +477,38 @@ _PAGE = """<!DOCTYPE html>
     <h1>{title}</h1>
     <div class="sub">{n_sys} system(s) · {n_cells} configuration(s) · generated {generated}</div>
   </header>
+  <p class="lead">This report benchmarks local AI models: how fast they respond, and where
+    they run. Everything was measured on the hardware listed below, entirely on-device.
+    Each number carries a plain-English reading so you can tell good from bad at a glance.</p>
+  <details class="glossary">
+    <summary>How to read these numbers</summary>
+    <dl>
+      <dt>Generation speed</dt><dd>How fast the answer streams out, in tokens per second
+        (a token is about ¾ of a word). Over 30 feels smooth; over 80 is faster than reading; under 10 drags.</dd>
+      <dt>Time to first token</dt><dd>The wait before the first word appears. Under 300 ms feels instant;
+        over 3 seconds feels broken.</dd>
+      <dt>Prompt reading speed</dt><dd>How quickly the model takes in your prompt and attachments.
+        Only matters much for long documents.</dd>
+      <dt>Model placement</dt><dd>Where the model ran. 100% GPU means it fit in GPU memory (fastest).
+        A CPU split means it overflowed into slower system memory, the "VRAM wall".</dd>
+      <dt>Range</dt><dd>The spread between the fastest and slowest of the repeated runs. A tight range
+        means the measurement is trustworthy.</dd>
+    </dl>
+  </details>
   <div class="grid2">{syscards}</div>
   <h2>Performance</h2>
   {charts}
-  <h2>Detail</h2>
+  <h2>Every configuration in detail</h2>
   {detail}
   {outputs}
   <footer>
-    Methodology: each configuration runs warm-up passes (discarded) then N measured
-    repeats; the median is charted and the min–max spread shown in brackets. Generation
-    options are held constant across systems. TTFT is wall-clock time to the first
-    streamed token on warm runs; cold-start load time is measured separately. Apple
-    Silicon uses unified memory, so its residency and memory figures are not directly
-    comparable to a discrete-VRAM NVIDIA GPU — read this as a system-level experience
-    comparison, not a raw GPU benchmark.
+    How this was measured: each configuration runs warm-up passes (thrown away), then several
+    timed repeats. The median is charted, with the fastest-to-slowest range shown alongside.
+    Generation settings are held constant so comparisons are fair. Time to first token is
+    wall-clock time to the first streamed word on warm runs; the one-off cold-start load is
+    timed separately. Note that Apple Silicon shares one memory pool between CPU and GPU, so its
+    memory figures are not directly comparable to a discrete NVIDIA GPU with separate VRAM. Read
+    a cross-system comparison as a real-world experience comparison, not a raw GPU benchmark.
   </footer>
 </div></body></html>
 """

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""llmbench — local-AI benchmarking harness CLI.
+"""llmbench: local-AI benchmarking harness CLI.
 
 Commands
     info                 Show detected system + Ollama status/models
@@ -214,7 +214,7 @@ def main(argv=None) -> int:
     prep = sub.add_parser("report", help="build HTML report from results JSON")
     prep.add_argument("results", nargs="+", help="one or more results JSON files")
     prep.add_argument("--out", default=os.path.join(HERE, "results", "report.html"))
-    prep.add_argument("--title", default="Local AI Benchmark — RTX vs Apple Silicon")
+    prep.add_argument("--title", default="Local AI Benchmark: RTX vs Apple Silicon")
     prep.set_defaults(func=cmd_report)
 
     args = p.parse_args(argv)

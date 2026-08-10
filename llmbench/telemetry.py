@@ -82,14 +82,10 @@ def describe_system(label_override: Optional[str] = None) -> Dict[str, str]:
         mem = _run(["sysctl", "-n", "hw.memsize"])
         if mem and mem.isdigit():
             info["unified_memory_mb"] = str(int(mem) // (1024 * 1024))
-        # Chip marketing name (e.g. "Apple M3 Max") via system_profiler.
-        sp = _run(["system_profiler", "SPHardwareDataType"], timeout=20)
-        if sp:
-            m = re.search(r"Chip:\s*(.+)", sp)
-            if m:
-                info["gpu"] = m.group(1).strip() + " (unified)"
-        if "gpu" not in info and chip:
-            info["gpu"] = chip
+        # On Apple Silicon the CPU brand string ("Apple M3 Max") is the chip
+        # name, so we skip the multi-second system_profiler call entirely.
+        if chip:
+            info["gpu"] = chip + " (unified)"
 
     # Cache the expensive parts (system_profiler / nvidia-smi) without the label.
     base = dict(info)

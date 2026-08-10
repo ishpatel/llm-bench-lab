@@ -12,6 +12,7 @@ of chunks a small local corpus produces. Knowledge bases persist under `kb/`.
 """
 from __future__ import annotations
 
+import heapq
 import json
 import math
 import os
@@ -69,6 +70,18 @@ def cosine(a: List[float], b: List[float]) -> float:
     return s / math.sqrt(da * db)
 
 
+def _normalize(v: List[float]) -> List[float]:
+    n = math.sqrt(sum(x * x for x in v))
+    if n == 0.0:
+        return v
+    inv = 1.0 / n
+    return [x * inv for x in v]
+
+
+def _dot(a: List[float], b: List[float]) -> float:
+    return sum(x * y for x, y in zip(a, b))
+
+
 # --------------------------------------------------------------------------
 # Building a knowledge base
 # --------------------------------------------------------------------------
@@ -105,8 +118,12 @@ def build_kb(name: str, docs: List[Tuple[str, str]], embed_model: str, client,
             dim = len(embs[0])
         log(f"  embedded {min(i + batch, len(chunks))}/{len(chunks)} chunks")
 
+    # Store unit-length vectors so retrieval is a plain dot product at query
+    # time (cosine similarity without a per-comparison sqrt).
     for idx, c in enumerate(chunks):
         c["id"] = idx
+        if c.get("embedding"):
+            c["embedding"] = _normalize(c["embedding"])
     return {
         "name": name,
         "embed_model": embed_model,
@@ -116,6 +133,7 @@ def build_kb(name: str, docs: List[Tuple[str, str]], embed_model: str, client,
         "docs": doc_meta,
         "n_chunks": len(chunks),
         "embed_ms": round(embed_ms, 1),
+        "normalized": True,
         "chunks": chunks,
     }
 
@@ -125,18 +143,18 @@ def build_kb(name: str, docs: List[Tuple[str, str]], embed_model: str, client,
 # --------------------------------------------------------------------------
 def retrieve(kb: Dict[str, Any], query_vec: List[float], k: int = 4
              ) -> List[Dict[str, Any]]:
-    scored = []
-    for c in kb.get("chunks", []):
-        emb = c.get("embedding")
-        if not emb:
-            continue
-        scored.append((cosine(query_vec, emb), c))
-    scored.sort(key=lambda x: x[0], reverse=True)
-    out = []
-    for score, c in scored[:k]:
-        out.append({"score": round(score, 4), "doc": c["doc"],
-                    "text": c["text"], "id": c["id"]})
-    return out
+    # Fast path for indexes built with unit-length vectors: dot product == cosine.
+    # Older indexes fall back to full cosine so nothing breaks.
+    if kb.get("normalized"):
+        q = _normalize(query_vec)
+        score_of = _dot
+    else:
+        q = query_vec
+        score_of = cosine
+    chunks = [c for c in kb.get("chunks", []) if c.get("embedding")]
+    top = heapq.nlargest(k, chunks, key=lambda c: score_of(q, c["embedding"]))
+    return [{"score": round(score_of(q, c["embedding"]), 4), "doc": c["doc"],
+             "text": c["text"], "id": c["id"]} for c in top]
 
 
 GROUNDED_INSTRUCTION = (
