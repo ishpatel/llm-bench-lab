@@ -340,6 +340,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._cross_report(ids)
             if path == "/api/kb":
                 return self._json({"kb": app.rag.list()})
+            if path == "/api/system":
+                return self._json(telemetry.describe_system_deep())
             m = _match(path, "/api/runs/", "/report")
             if m is not None:
                 return self._run_report(m)
@@ -396,6 +398,31 @@ class Handler(BaseHTTPRequestHandler):
                                  payload.get("model", ""),
                                  int(payload.get("k", 4)), opts)
                 return self._json(res, 400 if res.get("error") else 200)
+            m = _match(path, "/api/runs/", "/rate")
+            if m is not None:
+                payload = self._read_json()
+                meta = app.store.get(m)
+                if meta is None:
+                    return self._json({"error": "run not found"}, 404)
+                dims = ("correctness", "usefulness", "relevance", "usability")
+                rating: Dict[str, Any] = {}
+                for d in dims:
+                    v = payload.get(d)
+                    if v is not None:
+                        try:
+                            rating[d] = max(1, min(5, int(v)))
+                        except (TypeError, ValueError):
+                            pass
+                if not rating:
+                    return self._json({"error": "no rating dimensions given"}, 400)
+                scores = [rating[d] for d in dims if d in rating]
+                rating["overall"] = round(sum(scores) / len(scores), 1)
+                notes = str(payload.get("notes", "")).strip()
+                if notes:
+                    rating["notes"] = notes[:500]
+                meta["rating"] = rating
+                app.store.save(m, meta)
+                return self._json({"ok": True, "rating": rating})
             if path == "/api/agent/ask":
                 payload = self._read_json()
                 if not payload.get("model"):

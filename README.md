@@ -35,17 +35,26 @@ python bench.py serve            # then open http://127.0.0.1:8765
 
 A local, zero-dependency web UI for ad-hoc benchmarking:
 
-- **Pick a model** from the ones installed in Ollama.
+- **Pick a model** from the ones installed in Ollama (capability-aware: vision /
+  thinking / embedding models are labeled, and every field explains itself in
+  plain English).
 - **Type any prompt** and **attach multimodal reference material** — drag in PDFs,
   Word/PowerPoint/Excel docs, text/code, or images (images need a vision model).
   Documents are auto-extracted to text and injected as context.
 - **Submit** → the run is queued (one at a time, so GPU contention never pollutes
   timings) and you watch **live progress**; when it finishes you see the metrics
-  and the model's actual output.
+  — each with a **plain-English verdict** ("feels instant", "spilled to CPU —
+  this is the VRAM wall") — and the model's actual output.
+- **Rate every answer** on four dimensions (correct / useful / relevant /
+  usable); scores appear in the history so you can find the model that's both
+  fast *and* good.
 - Every run is **saved** with its own self-contained HTML report.
-- A **Runs** master view lets you browse, search, filter by model, and sort.
+- A **Runs** master view lets you browse, search, filter by model, sort (incl.
+  by score), and read a metric legend written for non-experts.
 - Select runs and **Compare** them side-by-side, with the best value per metric
   highlighted.
+- A **System details** panel breaks down the local hardware — CPU (core types),
+  GPU (cores, compute API), NPU, memory, and the software environment.
 
 An **Advanced** panel exposes the methodology knobs (measured repeats, warm-up,
 cold-start, temperature, max tokens, context length) — defaults keep the rigorous
