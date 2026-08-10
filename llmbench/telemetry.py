@@ -233,6 +233,26 @@ def describe_system_deep() -> Dict[str, Any]:
 
 
 # --------------------------------------------------------------------------
+# TensorRT availability (honest facts; the caller decides what to do)
+# --------------------------------------------------------------------------
+def tensorrt_status() -> Dict[str, Any]:
+    """Report what is actually true about TensorRT on this machine: whether an
+    NVIDIA GPU is present and whether the Python tensorrt package imports.
+    TensorRT requires NVIDIA hardware, so on Apple Silicon both are false and
+    the UI says so instead of pretending."""
+    status: Dict[str, Any] = {
+        "nvidia_gpu": has_nvidia_smi(),
+        "python_tensorrt": None,
+    }
+    try:
+        import tensorrt  # type: ignore  # noqa: F401
+        status["python_tensorrt"] = getattr(tensorrt, "__version__", "installed")
+    except Exception:
+        pass
+    return status
+
+
+# --------------------------------------------------------------------------
 # Ollama residency (`ollama ps`) — where is the model actually running?
 # --------------------------------------------------------------------------
 def ollama_ps() -> Dict[str, Dict[str, str]]:

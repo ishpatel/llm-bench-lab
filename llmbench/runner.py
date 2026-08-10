@@ -56,7 +56,14 @@ class Runner:
                  log: Optional[Callable[[str], None]] = None,
                  base_dirs: Optional[List[str]] = None):
         self.config = config
-        self.client = OllamaClient(base_url=config["base_url"])
+        backend = config.get("backend") or None
+        if backend and backend.get("type") == "openai":
+            from .backends import OpenAICompatClient
+            self.client = OpenAICompatClient(backend["base_url"])
+            self.engine_label = backend.get("label", "external engine")
+        else:
+            self.client = OllamaClient(base_url=config["base_url"])
+            self.engine_label = None  # local Ollama
         self.prompts = cfg_mod.resolve_prompts(config["prompts"], prompts)
         self.log = log or (lambda m: print(m, file=sys.stderr))
         self.base_dirs = base_dirs or [os.getcwd()]
@@ -84,7 +91,12 @@ class Runner:
         cells: List[Dict[str, Any]] = []
 
         for model in c["models"]:
-            if model not in available:
+            if self.engine_label:
+                # External engines may not implement model listing fully;
+                # warn instead of refusing.
+                if available and model not in available:
+                    self.log(f"  ! {model} not listed by the endpoint; trying anyway")
+            elif model not in available:
                 self.log(f"  ! skipping {model}: not pulled (ollama pull {model})")
                 continue
             for ctx in c["context_lengths"]:
@@ -105,6 +117,7 @@ class Runner:
                 "runs": c["runs"],
                 "warmup": c["warmup"],
                 "measure_cold_start": c["measure_cold_start"],
+                "engine": self.engine_label or "Ollama",
                 "ollama_version": self._ollama_version(),
             },
             "cells": cells,
@@ -128,13 +141,21 @@ class Runner:
             self.log(f"    attachments: {len(attach_meta['files'])} file(s), "
                      f"{len(attach_meta['images'])} image(s), "
                      f"~{attach_meta['assembled_approx_tokens']} prompt tokens (est.)")
+        if images and self.engine_label:
+            self.log("    note: image attachments are not sent to external "
+                     "engines; running text-only")
+            images = []
 
         cold: Optional[Dict[str, Any]] = None
         if c["measure_cold_start"]:
-            self.client.unload(model)
-            time.sleep(0.5)  # let the eviction settle
-            self.log("    cold-start run…")
-            cold = self._measured(model, text, options, images=images)
+            if self.engine_label:
+                self.log("    external engine manages its own model loading; "
+                         "skipping cold-start measurement")
+            else:
+                self.client.unload(model)
+                time.sleep(0.5)  # let the eviction settle
+                self.log("    cold-start run…")
+                cold = self._measured(model, text, options, images=images)
 
         for i in range(c["warmup"]):
             self.log(f"    warm-up {i + 1}/{c['warmup']}…")
@@ -148,8 +169,13 @@ class Runner:
             raw_runs.append(m)
             runs.append(_dict_to_result(m))
 
-        # Residency snapshot after the model has been exercised.
-        ps = telemetry.ollama_ps().get(model, {})
+        # Residency snapshot after the model has been exercised. External
+        # engines are not visible to `ollama ps`; label them by engine and let
+        # the NVIDIA GPU sampler tell the memory story.
+        if self.engine_label:
+            residency = f"{self.engine_label} engine"
+        else:
+            residency = telemetry.ollama_ps().get(model, {}).get("processor", "")
 
         return {
             "label": self._cell_label(model, ctx, prompt["key"]),
@@ -159,7 +185,7 @@ class Runner:
             "prompt_note": prompt.get("note", ""),
             "prompt_text": prompt["text"],
             "attachments": attach_meta,
-            "residency": ps.get("processor", ""),
+            "residency": residency,
             "cold_start": cold,
             "runs": raw_runs,
             "aggregate": _aggregate(runs),

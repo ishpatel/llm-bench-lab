@@ -212,6 +212,9 @@ def build_report(results: List[Dict[str, Any]], title: str = "Local AI Benchmark
                 rows.append(f'<tr><td>{html.escape(_pretty(k))}</td>'
                             f'<td>{html.escape(str(v))}</td></tr>')
         meta = m.get("_meta", {})
+        engine = meta.get("engine")
+        if engine and engine != "Ollama":
+            rows.append(f'<tr><td>Engine</td><td>{html.escape(str(engine))}</td></tr>')
         rows.append(f'<tr><td>Ollama</td><td>{html.escape(str(meta.get("ollama_version","?")))}</td></tr>')
         opts = meta.get("options", {})
         rows.append(f'<tr><td>Gen options</td><td>{html.escape(json.dumps(opts))}</td></tr>')

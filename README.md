@@ -130,6 +130,46 @@ python bench.py report results/quant-sweep_*.json --out results/report.html
 Useful flags: `run --label "<name>"` (system label shown in the report),
 `run --runs N` (override measured repeats), `--base-url` (remote Ollama).
 
+## TensorRT-LLM backend (NVIDIA RTX)
+
+By default llmbench benchmarks through Ollama, whose engine is llama.cpp. On
+NVIDIA RTX hardware you can instead route runs through **NVIDIA's TensorRT-LLM**
+stack and compare the two engines head-to-head on the same GPU, same model,
+same prompt.
+
+How it works, honestly: Ollama has no TensorRT mode, so this is not a flag
+inside Ollama. TensorRT-LLM ships its own server (`trtllm-serve`, and NVIDIA
+NIM containers) that exposes an OpenAI-compatible API, and llmbench speaks that
+protocol as an alternate engine.
+
+1. On the RTX machine, serve a model with TensorRT-LLM (Linux or WSL2):
+   ```bash
+   pip install tensorrt-llm
+   trtllm-serve <model>          # OpenAI-compatible API on port 8000
+   ```
+   An NVIDIA NIM container works the same way.
+2. In **New Run**, tick **TensorRT-LLM backend**, enter the endpoint URL, and
+   press **Check connection**. The model list switches to what the endpoint
+   serves.
+3. Run the benchmark. The run is labeled with the TensorRT-LLM engine in its
+   detail view and report, so Ollama and TensorRT results never get mixed up.
+
+Notes:
+- Speed metrics (TTFT, generation tok/s, token counts) are measured the same
+  way as Ollama runs. Cold start is skipped because the external engine manages
+  its own model loading, and `ollama ps` residency does not apply; on NVIDIA
+  machines the `nvidia-smi` sampler still reports GPU utilization and VRAM.
+- The endpoint can be remote: a Mac can drive benchmarks against an RTX
+  machine's `trtllm-serve` over the network.
+- `GET /api/trt/status?url=...` reports the honest facts: NVIDIA GPU present,
+  python `tensorrt` importable, endpoint reachable. TensorRT requires NVIDIA
+  hardware, so on Apple Silicon the first two are always false.
+- CLI configs can use the same engine with
+  `"backend": {"type": "openai", "base_url": "http://host:8000", "label": "TensorRT-LLM"}`.
+- Any OpenAI-compatible server works (vLLM, NIM, even Ollama's own `/v1`),
+  which is how the code path is exercised in CI-style checks on machines
+  without NVIDIA hardware.
+
 ## Cross-system comparison (RTX vs Apple Silicon)
 
 The goal: run the **same model + prompt** on both machines and see where the
@@ -352,6 +392,7 @@ disable the reasoning stream.
 bench.py                CLI entry point (info / run / report / serve)
 llmbench/
   ollama.py             streaming client + per-generation timing
+  backends.py           OpenAI-compatible engine client (TensorRT-LLM, NIM)
   telemetry.py          platform detection, ollama ps, nvidia-smi sampler
   extract.py            document text extraction (pdf/docx/pptx/xlsx/…)
   attachments.py        inject reference docs, encode images

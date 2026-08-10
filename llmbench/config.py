@@ -20,6 +20,10 @@ DEFAULTS: Dict[str, Any] = {
     "context_lengths": [None],      # None => model default; else sets num_ctx
     "prompts": [],                  # keys into the prompt set (or inline dicts)
     "max_chars_per_file": None,     # cap injected document size (None = no cap)
+    # Optional alternate engine. Example (TensorRT-LLM via trtllm-serve):
+    #   "backend": {"type": "openai", "base_url": "http://localhost:8000",
+    #               "label": "TensorRT-LLM"}
+    "backend": None,
 }
 
 

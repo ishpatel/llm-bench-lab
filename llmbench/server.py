@@ -130,6 +130,25 @@ class BenchServer:
             if payload.get("think") is not None:
                 opts["think"] = bool(payload["think"])
             num_ctx = payload.get("num_ctx")
+
+            # Optional TensorRT-LLM engine (any OpenAI-compatible endpoint).
+            backend = None
+            engine_name = "Ollama"
+            if payload.get("engine") == "trtllm":
+                url = (payload.get("engine_url") or "").strip()
+                if not url:
+                    raise RuntimeError("TensorRT-LLM endpoint URL is required "
+                                       "when the TensorRT backend is enabled.")
+                from .backends import OpenAICompatClient
+                if not OpenAICompatClient(url).is_up():
+                    raise RuntimeError(
+                        f"TensorRT-LLM endpoint not reachable at {url}. Start "
+                        f"trtllm-serve (or a NIM container) and check the URL.")
+                backend = {"type": "openai", "base_url": url,
+                           "label": "TensorRT-LLM"}
+                engine_name = "TensorRT-LLM (OpenAI-compatible)"
+                log(f"engine: TensorRT-LLM endpoint at {url}")
+
             cfg = {
                 "name": payload.get("name") or "run",
                 "system_label": payload.get("system_label") or None,
@@ -141,6 +160,7 @@ class BenchServer:
                 "models": [payload["model"]],
                 "context_lengths": [int(num_ctx)] if num_ctx else [None],
                 "max_chars_per_file": payload.get("max_chars_per_file") or None,
+                "backend": backend,
                 "prompts": [{
                     "key": "prompt",
                     "text": payload.get("prompt", ""),
@@ -164,6 +184,7 @@ class BenchServer:
                 "state": "done",
                 "name": payload.get("name") or "",
                 "model": payload["model"],
+                "engine": engine_name,
                 "system": result["meta"]["system"],
                 "options": opts,
                 "num_ctx": num_ctx,
@@ -342,6 +363,20 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"kb": app.rag.list()})
             if path == "/api/system":
                 return self._json(telemetry.describe_system_deep())
+            if path == "/api/trt/status":
+                qs = parse_qs(urlparse(self.path).query)
+                url = (qs.get("url", [None])[0] or "").strip()
+                status = telemetry.tensorrt_status()
+                if url:
+                    from .backends import OpenAICompatClient
+                    client = OpenAICompatClient(url)
+                    reachable = client.is_up()
+                    status["endpoint"] = {
+                        "url": url,
+                        "reachable": reachable,
+                        "models": client.list_models() if reachable else [],
+                    }
+                return self._json(status)
             m = _match(path, "/api/runs/", "/report")
             if m is not None:
                 return self._run_report(m)

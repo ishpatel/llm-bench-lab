@@ -268,6 +268,23 @@
         </div>
       </div>
       <div class="field">
+        <label><input type="checkbox" id="trt" style="width:auto"> TensorRT-LLM backend <span class="hint">(NVIDIA RTX hardware)</span></label>
+        <div class="help" id="trtHelp">Benchmark through NVIDIA's TensorRT-LLM engine instead of Ollama.
+          Start <span class="mono">trtllm-serve</span> (or an NVIDIA NIM container) on the RTX machine and
+          connect to it; the same prompt then runs on the TensorRT engine, so you can compare it
+          head-to-head with Ollama.</div>
+        <div id="trtRow" style="display:none;margin-top:6px">
+          <div class="row" style="align-items:end">
+            <div class="field" style="margin:0">
+              <label>Endpoint URL</label>
+              <input id="trtUrl" placeholder="http://localhost:8000" value="http://localhost:8000">
+            </div>
+            <div class="field" style="margin:0"><button class="ghost" id="trtCheck">Check connection</button></div>
+          </div>
+          <div class="hint" id="trtStatus" style="margin-top:6px"></div>
+        </div>
+      </div>
+      <div class="field">
         <label>Prompt</label>
         <div class="help">The task or question you want to benchmark. Identical prompts across models or
           machines make for fair comparisons.</div>
@@ -696,6 +713,7 @@ async function init(){
     const firstGen=state.models.find(m=>m.generative&&!m.embedding);
     if(firstGen)sel.value=firstGen.name;
     updateModelCaps();
+    trtHelpDefault();
     if(!md.ok){
       $('#sysChips').innerHTML=`<span class="hwchip" style="color:var(--bad)">Ollama not reachable. Run <b>ollama serve</b></span>`;
       $('#submit').disabled=true;
@@ -708,12 +726,59 @@ async function init(){
 }
 
 function updateModelCaps(){
+  const el=$('#modelCaps');
+  if(state.trtActive){el.textContent='Model list comes from the TensorRT-LLM endpoint.';return;}
   const m=state.models.find(x=>x.name===$('#model').value);
-  const el=$('#modelCaps');if(!m){el.textContent='';return;}
+  if(!m){el.textContent='';return;}
   if(m.vision)el.innerHTML='🖼 <b>Vision-capable</b>: attached images will be shown to this model.';
   else el.innerHTML='Text-only: attached images are ignored (documents still work).';
 }
 $('#model').onchange=updateModelCaps;
+
+/* ---------------- TensorRT-LLM backend ---------------- */
+state.trtActive=false; state.savedModelHtml=null;
+function trtHelpDefault(){
+  const nv=state.deep&&/NVIDIA/i.test(((state.deep.env||{}).backend)||'');
+  $('#trtHelp').innerHTML = nv
+    ? 'Benchmark through NVIDIA\'s TensorRT-LLM engine instead of Ollama. Start <span class="mono">trtllm-serve</span> (or an NVIDIA NIM container) and connect; the same prompt then runs on the TensorRT engine, so you can compare it head-to-head with Ollama on this GPU.'
+    : 'Needs NVIDIA RTX hardware to run. This machine uses Apple Metal, so local runs stay on Ollama, but you can still connect to a TensorRT-LLM endpoint served from an RTX machine on your network (start <span class="mono">trtllm-serve</span> there and enter its address).';
+}
+$('#trt').onchange=()=>{
+  const on=$('#trt').checked;
+  $('#trtRow').style.display=on?'':'none';
+  if(!on){
+    state.trtActive=false;
+    if(state.savedModelHtml!=null){$('#model').innerHTML=state.savedModelHtml;state.savedModelHtml=null;}
+    $('#trtStatus').textContent='';
+    updateModelCaps();
+    return;
+  }
+  checkTrt();
+};
+$('#trtCheck').onclick=checkTrt;
+async function checkTrt(){
+  const url=($('#trtUrl').value||'http://localhost:8000').trim();
+  $('#trtStatus').textContent='checking '+url+' …';
+  let st;
+  try{st=await (await fetch('/api/trt/status?url='+encodeURIComponent(url))).json();}
+  catch(e){$('#trtStatus').innerHTML='<span style="color:var(--bad)">Could not query the endpoint.</span>';return;}
+  const ep=st.endpoint||{};
+  const facts=[];
+  facts.push(st.nvidia_gpu?'NVIDIA GPU detected on this machine':'no NVIDIA GPU on this machine');
+  if(st.python_tensorrt)facts.push('python tensorrt '+st.python_tensorrt);
+  if(ep.reachable){
+    state.trtActive=true;
+    if(state.savedModelHtml==null)state.savedModelHtml=$('#model').innerHTML;
+    const sel=$('#model');
+    sel.innerHTML=(ep.models&&ep.models.length?ep.models:['(endpoint lists no models)']).map(m=>`<option>${esc(m)}</option>`).join('');
+    $('#trtStatus').innerHTML='<span style="color:var(--good)">Connected.</span> '
+      +(ep.models?ep.models.length:0)+' model(s) served by the endpoint. Runs will use this engine and are labeled TensorRT-LLM. ('+facts.join(' · ')+')';
+    updateModelCaps();
+  }else{
+    state.trtActive=false;
+    $('#trtStatus').innerHTML='<span style="color:var(--bad)">Not reachable at '+esc(url)+'.</span> Start it with <span class="mono">trtllm-serve &lt;model&gt;</span> (or a NIM container), then check again. ('+facts.join(' · ')+')';
+  }
+}
 
 /* ---------------- attachments ---------------- */
 $('#drop').onclick=()=>$('#file').click();
@@ -752,6 +817,11 @@ $('#submit').onclick=async()=>{
     max_chars_per_file:$('#max_chars').value?+$('#max_chars').value:null,
     attachments:state.attachments.map(a=>({filename:a.filename,b64:a.b64})),
   };
+  if($('#trt').checked){
+    if(!state.trtActive){toast('Check the TensorRT-LLM connection first');return;}
+    payload.engine='trtllm';
+    payload.engine_url=($('#trtUrl').value||'http://localhost:8000').trim();
+  }
   if(!payload.prompt&&!payload.attachments.length){toast('Enter a prompt or add an attachment');return;}
   $('#submit').disabled=true;
   try{
@@ -882,7 +952,7 @@ async function openRun(id){
   const html=`<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
     <button class="close" onclick="closeModal()">×</button>
     <h2>${r.name?esc(r.name):'Untitled run'} ${statePill(r.state)}</h2>
-    <div class="hint mono">${esc(r.model)} · ${(r.created||'').replace('T',' ')}</div>
+    <div class="hint mono">${esc(r.model)} · ${(r.created||'').replace('T',' ')}${r.engine&&r.engine!=='Ollama'?' · engine: '+esc(r.engine):''}</div>
     ${metricsHtml(r.metrics)}
     <label>Prompt</label><pre class="out" style="max-height:160px">${esc(r.prompt&&r.prompt.text||'')}</pre>
     ${att}
