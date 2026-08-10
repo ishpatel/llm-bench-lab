@@ -101,6 +101,34 @@ def cmd_serve(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_export(args: argparse.Namespace) -> int:
+    from llmbench.store import RunStore
+    store = RunStore(os.path.join(HERE, "runs"))
+    bundle = store.export_bundle(args.run_id)
+    if bundle is None:
+        print(f"error: run '{args.run_id}' not found", file=sys.stderr)
+        return 1
+    out = args.out or f"{args.run_id}.llmbench.json"
+    with open(out, "w", encoding="utf-8") as f:
+        json.dump(bundle, f)
+    print(f"Exported run → {out}  (copy to the other machine, then: "
+          f"python bench.py import {os.path.basename(out)})")
+    return 0
+
+
+def cmd_import(args: argparse.Namespace) -> int:
+    from llmbench.store import RunStore
+    store = RunStore(os.path.join(HERE, "runs"))
+    with open(args.bundle, "r", encoding="utf-8") as f:
+        bundle = json.load(f)
+    if bundle.get("format") != "llmbench.run.v1":
+        print("error: not an llmbench run bundle", file=sys.stderr)
+        return 1
+    rid = store.import_bundle(bundle)
+    print(f"Imported run → {rid}  (now visible in the web UI / runs list)")
+    return 0
+
+
 def cmd_report(args: argparse.Namespace) -> int:
     results = []
     for path in args.results:
@@ -136,6 +164,15 @@ def main(argv=None) -> int:
     psv.add_argument("--host", default="127.0.0.1")
     psv.add_argument("--port", type=int, default=8765)
     psv.set_defaults(func=cmd_serve)
+
+    pex = sub.add_parser("export", help="export a run to a portable bundle")
+    pex.add_argument("run_id")
+    pex.add_argument("--out", default=None)
+    pex.set_defaults(func=cmd_export)
+
+    pim = sub.add_parser("import", help="import a run bundle from another machine")
+    pim.add_argument("bundle")
+    pim.set_defaults(func=cmd_import)
 
     prep = sub.add_parser("report", help="build HTML report from results JSON")
     prep.add_argument("results", nargs="+", help="one or more results JSON files")

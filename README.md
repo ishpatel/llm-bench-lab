@@ -75,11 +75,34 @@ python bench.py report results/quant-sweep_*.json --out results/report.html
 | `info` | Print detected system + Ollama status and models |
 | `run CONFIG` | Execute a benchmark config, write a results JSON |
 | `report RESULTS...` | Build an HTML report; pass **multiple** files to compare systems |
+| `export RUN_ID` | Export a web-UI run to a portable `.llmbench.json` bundle |
+| `import BUNDLE` | Import a run bundle from another machine |
 
 Useful flags: `run --label "<name>"` (system label shown in the report),
 `run --runs N` (override measured repeats), `--base-url` (remote Ollama).
 
 ## Cross-system comparison (RTX vs Apple Silicon)
+
+The goal: run the **same model + prompt** on both machines and see where the
+8 GB RTX laptop hits the **VRAM wall** while the M3 Max's unified memory does
+not. There are two ways to do it.
+
+### Via the web app (recommended)
+
+1. **Run** the model+prompt in the web UI on each machine — the run is
+   auto-labeled by the detected GPU (M3 Max vs RTX).
+2. On the RTX laptop, **Export** the run (run detail → `Export ⤓`), which
+   downloads a portable `<id>.llmbench.json` bundle.
+3. Copy the bundle to the Mac and **Import** it (Runs tab → `Import run`).
+4. Open the **Cross-system** tab. Any model present on 2+ systems is shown with
+   both systems side-by-side; the **VRAM wall is flagged automatically** when
+   residency drops off `100% GPU`, with the throughput hit computed for you.
+   `Open cross-system report ↗` renders the merged grouped-by-system charts.
+
+Bundles are also scriptable: `python bench.py export <run_id>` /
+`python bench.py import <bundle.json>`.
+
+### Via the CLI
 
 Run the **same** config on each machine, then merge the results files into one
 report. `configs/mac.json` is the shared cross-system matrix.
@@ -95,11 +118,10 @@ python bench.py run configs/mac.json --label "RTX 5070 (8GB)"
 python bench.py report results/cross-system_*.json --out results/cross.html
 ```
 
-The report groups bars by system per configuration. On the 8 GB RTX laptop,
-`qwen3:4b-fp16` (~8 GB) and `qwen3:8b-q4_K_M` (~5 GB) are where you expect the
-VRAM wall — watch the `residency` column flip from `100% GPU` to a CPU/GPU
-split and generation throughput collapse. That contrast against the M3 Max's
-unified memory is the centerpiece of the writeup.
+Either way, on the 8 GB RTX laptop `gemma3:12b` (~8.1 GB) and `qwen3:4b-fp16`
+(~8.1 GB) are where you expect the wall — residency flips from `100% GPU` to a
+CPU/GPU split and generation throughput collapses, while both fit comfortably in
+the M3 Max's unified memory. That contrast is the centerpiece of the writeup.
 
 ## Reference files, documents & images (task-based benchmarking)
 

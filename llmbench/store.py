@@ -107,3 +107,45 @@ class RunStore:
             shutil.rmtree(d, ignore_errors=True)
             return True
         return False
+
+    # -- portability: move runs between machines ---------------------------
+    def _unique_id(self, base: str) -> str:
+        rid, i = base, 2
+        while os.path.isdir(self.run_dir(rid)):
+            rid = f"{base}-{i}"
+            i += 1
+        return rid
+
+    def export_bundle(self, run_id: str) -> Optional[Dict[str, Any]]:
+        """Self-contained JSON bundle (meta + result + attachments) so a run
+        can be carried from one machine to another and re-imported."""
+        meta = self.get(run_id)
+        if meta is None:
+            return None
+        atts: List[Dict[str, str]] = []
+        adir = os.path.join(self.run_dir(run_id), "attachments")
+        if os.path.isdir(adir):
+            for name in sorted(os.listdir(adir)):
+                p = os.path.join(adir, name)
+                if os.path.isfile(p):
+                    with open(p, "rb") as f:
+                        atts.append({"name": name,
+                                     "b64": base64.b64encode(f.read()).decode("ascii")})
+        return {
+            "format": "llmbench.run.v1",
+            "meta": meta,
+            "result": self.get_result(run_id),
+            "attachments": atts,
+        }
+
+    def import_bundle(self, bundle: Dict[str, Any]) -> str:
+        """Recreate a run folder from an exported bundle. Assigns a fresh id if
+        the original collides with an existing run."""
+        meta = dict(bundle.get("meta") or {})
+        base = meta.get("id") or "imported"
+        run_id = self._unique_id(base)
+        meta["id"] = run_id
+        for a in bundle.get("attachments") or []:
+            self.save_attachment_b64(run_id, a.get("name", "file"), a.get("b64", ""))
+        self.save(run_id, meta, bundle.get("result"))
+        return run_id

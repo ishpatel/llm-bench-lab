@@ -20,7 +20,7 @@ import os
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Dict, List, Optional, Tuple
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 from . import report as report_mod
 from . import telemetry
@@ -229,9 +229,16 @@ class Handler(BaseHTTPRequestHandler):
                 for r in runs:  # keep the list light
                     r.pop("output", None)
                 return self._json({"runs": runs})
+            if path == "/api/cross-report":
+                qs = parse_qs(urlparse(self.path).query)
+                ids = [i for i in (qs.get("ids", [""])[0].split(",")) if i]
+                return self._cross_report(ids)
             m = _match(path, "/api/runs/", "/report")
             if m is not None:
                 return self._run_report(m)
+            m = _match(path, "/api/runs/", "/export")
+            if m is not None:
+                return self._export(m)
             if path.startswith("/api/runs/"):
                 return self._json_or_404(app.store.get(path[len("/api/runs/"):]))
             if path.startswith("/api/jobs/"):
@@ -255,6 +262,12 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json({"error": "prompt or attachment required"}, 400)
                 run_id = app.start_run(payload)
                 return self._json({"id": run_id})
+            if path == "/api/import":
+                bundle = self._read_json()
+                if bundle.get("format") != "llmbench.run.v1":
+                    return self._json({"error": "not a run bundle"}, 400)
+                rid = app.store.import_bundle(bundle)
+                return self._json({"id": rid})
             self._json({"error": "not found"}, 404)
         except Exception as e:  # noqa: BLE001
             self._json({"error": f"{type(e).__name__}: {e}"}, 500)
@@ -288,6 +301,32 @@ class Handler(BaseHTTPRequestHandler):
         if result is None:
             return self._json({"error": "no result yet"}, 404)
         html = report_mod.build_report([result], title=f"Run {run_id}")
+        self._bytes(html.encode("utf-8"), CTYPES[".html"])
+
+    def _export(self, run_id: str) -> None:
+        bundle = self.server_app.store.export_bundle(run_id)
+        if bundle is None:
+            return self._json({"error": "not found"}, 404)
+        body = json.dumps(bundle).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Disposition",
+                         f'attachment; filename="{run_id}.llmbench.json"')
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _cross_report(self, ids: List[str]) -> None:
+        """Merge several runs' results into one grouped-by-system report."""
+        results = []
+        for rid in ids:
+            r = self.server_app.store.get_result(rid)
+            if r is not None:
+                results.append(r)
+        if not results:
+            return self._json({"error": "no results for given ids"}, 404)
+        html = report_mod.build_report(
+            results, title="Cross-system comparison")
         self._bytes(html.encode("utf-8"), CTYPES[".html"])
 
 

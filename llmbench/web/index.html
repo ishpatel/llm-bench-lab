@@ -81,6 +81,20 @@
   .cmprow{display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:13px}
   .cmprow .k{color:var(--muted)}
   .cmprow .v.best{color:var(--accent);font-weight:700}
+  .syschip{display:inline-block;font-size:12px;padding:3px 10px;border-radius:20px;
+    border:1px solid var(--border);margin:0 6px 6px 0}
+  .crosscard{background:var(--card);border:1px solid var(--border);border-radius:12px;
+    padding:16px 18px;margin-bottom:16px}
+  .crosscard h3{margin:0 0 4px;font-family:ui-monospace,Menlo,monospace;font-size:14px}
+  table.xsys{width:100%;border-collapse:collapse;font-size:13px;margin:10px 0}
+  table.xsys th,table.xsys td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--border)}
+  table.xsys th{color:var(--muted);font-weight:600;font-size:12px}
+  table.xsys td.best{color:var(--accent);font-weight:700}
+  .wall{color:var(--danger);font-weight:700}
+  .wallnote{background:rgba(229,72,77,.10);border:1px solid var(--danger);border-radius:8px;
+    padding:10px 12px;font-size:13px;margin-top:8px}
+  .goodnote{background:rgba(47,158,68,.10);border:1px solid var(--good);border-radius:8px;
+    padding:10px 12px;font-size:13px;margin-top:8px}
   .att li{font-size:13px;margin-bottom:3px}
   .method{color:var(--muted);font-size:11px;font-family:ui-monospace,Menlo,monospace}
   .att-warn{color:var(--warn);font-size:11px}
@@ -104,6 +118,7 @@
   <button data-tab="new" class="active">New Run</button>
   <button data-tab="runs">Runs <span class="badge" id="runsCount">0</span></button>
   <button data-tab="compare">Compare <span class="badge" id="cmpCount">0</span></button>
+  <button data-tab="cross">Cross-system <span class="badge" id="sysCount">0</span></button>
 </nav>
 <main>
   <!-- NEW RUN -->
@@ -163,6 +178,8 @@
         <option value="ttft_ms">TTFT</option>
       </select></div>
       <button class="ghost" id="cmpBtn">Compare selected</button>
+      <button class="ghost" id="importBtn">Import run</button>
+      <input type="file" id="importFile" accept=".json" style="display:none">
       <button class="ghost" id="refresh">Refresh</button>
     </div>
     <div class="card" style="padding:0;overflow:auto">
@@ -178,6 +195,12 @@
   <section id="tab-compare" style="display:none">
     <div id="cmpEmpty" class="empty">Select runs in the <b>Runs</b> tab, then click <b>Compare selected</b>.</div>
     <div class="cmp" id="cmpWrap"></div>
+  </section>
+
+  <!-- CROSS-SYSTEM -->
+  <section id="tab-cross" style="display:none">
+    <div class="card" id="crossHead"></div>
+    <div id="crossBody"></div>
   </section>
 </main>
 <div id="modalRoot"></div>
@@ -198,8 +221,9 @@ function isImg(name){return IMG_EXT.includes((name.split('.').pop()||'').toLower
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
   b.classList.add('active');
-  for(const t of ['new','runs','compare']) $('#tab-'+t).style.display = (t===b.dataset.tab)?'':'none';
+  for(const t of ['new','runs','compare','cross']) $('#tab-'+t).style.display = (t===b.dataset.tab)?'':'none';
   if(b.dataset.tab==='runs') loadRuns();
+  if(b.dataset.tab==='cross') renderCross();
 });
 
 // ---- system + models ----
@@ -337,6 +361,20 @@ async function loadRuns(){
 }
 ['#fSearch','#fModel','#fSort'].forEach(s=>$(s).oninput=renderRuns);
 $('#refresh').onclick=loadRuns;
+$('#importBtn').onclick=()=>$('#importFile').click();
+$('#importFile').onchange=e=>{
+  const f=e.target.files[0]; if(!f)return;
+  const r=new FileReader();
+  r.onload=async()=>{
+    try{
+      const bundle=JSON.parse(r.result);
+      const res=await (await fetch('/api/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(bundle)})).json();
+      if(res.error){toast(res.error);return;}
+      toast('Imported run '+res.id);loadRuns();
+    }catch(err){toast('invalid bundle file');}
+  };
+  r.readAsText(f); e.target.value='';
+};
 function renderRuns(){
   const q=$('#fSearch').value.toLowerCase(),fm=$('#fModel').value,sort=$('#fSort').value;
   let rows=state.runs.filter(r=>{
@@ -388,6 +426,7 @@ async function openRun(id){
     <pre class="out">${esc(r.output||'(no visible output)')}</pre>
     <div style="margin-top:12px;display:flex;gap:8px">
       <a class="ghost" style="text-decoration:none" href="/api/runs/${id}/report" target="_blank">Open report ↗</a>
+      <a class="ghost" style="text-decoration:none" href="/api/runs/${id}/export">Export ⤓</a>
       <button class="ghost" style="color:var(--danger)" onclick="delRun('${id}')">Delete run</button>
     </div></div></div>`;
   $('#modalRoot').innerHTML=html;
@@ -436,6 +475,88 @@ function renderCompare(runs){
       <label>Output</label><pre class="out" style="max-height:220px">${esc(r.output||'(none)')}</pre>`;
     wrap.appendChild(col);
   });
+}
+
+// ---- cross-system ----
+const is100GPU = res => /100%\s*GPU/i.test(res||'');
+const sysOf = r => (r.system && r.system.label) || 'unknown';
+
+async function renderCross(){
+  let runs;
+  try{ runs=(await (await fetch('/api/runs')).json()).runs||[]; }
+  catch(e){ runs=state.runs; }
+  runs=runs.filter(r=>r.state!=='running' && r.metrics);
+  const systems=[...new Set(runs.map(sysOf))];
+  $('#sysCount').textContent=systems.length;
+
+  // header: which systems are present
+  const chips=systems.map(s=>`<span class="syschip">${esc(s)}</span>`).join('');
+  let head=`<div class="att-h">Systems detected</div>${chips||'<span class="hint">none yet</span>'}`;
+  if(systems.length<2){
+    head+=`<div class="wallnote" style="background:rgba(230,167,0,.10);border-color:var(--warn);color:var(--fg)">
+      <b>Only one system so far.</b> To build the RTX-vs-Apple comparison: clone this repo on the other
+      machine, run the <b>same model + prompt</b> there (it auto-labels by GPU), then
+      <b>Export</b> that run and <b>Import</b> it here (Runs tab). Models present on 2+ systems appear below,
+      with the VRAM wall flagged automatically.</div>`;
+  }
+  $('#crossHead').innerHTML=head;
+
+  // group by model -> one run per system (most recent, since list is newest-first)
+  const byModel={};
+  runs.forEach(r=>{
+    const m=r.model; byModel[m]=byModel[m]||{};
+    const s=sysOf(r); if(!byModel[m][s]) byModel[m][s]=r; // first = newest
+  });
+
+  const models=Object.keys(byModel).sort();
+  const multi=models.filter(m=>Object.keys(byModel[m]).length>=2);
+  const body=$('#crossBody');
+  if(!multi.length){
+    body.innerHTML=`<div class="empty">No model has been run on 2+ systems yet.
+      ${systems.length>=2?'Run the same model on each system to compare it here.':''}</div>`;
+    return;
+  }
+  body.innerHTML=multi.map(m=>crossCard(m,byModel[m])).join('');
+}
+
+function crossCard(model, bySys){
+  const sysNames=Object.keys(bySys);
+  const rows=sysNames.map(s=>({s, r:bySys[s], m:bySys[s].metrics||{}}));
+  const bestGen=Math.max(...rows.map(x=>x.m.gen_tps||0));
+  const ids=rows.map(x=>x.r.id).join(',');
+
+  const tbl=`<table class="xsys"><thead><tr><th>System</th><th>Gen tok/s</th>
+    <th>TTFT ms</th><th>Prefill tok/s</th><th>Residency</th><th>Out tok</th></tr></thead><tbody>`+
+    rows.map(x=>{
+      const wall=!is100GPU(x.m.residency);
+      const gb=(x.m.gen_tps===bestGen)?'best':'';
+      return `<tr><td>${esc(x.s)}</td>
+        <td class="${gb}">${fmt(x.m.gen_tps)}</td>
+        <td>${fmt(x.m.ttft_ms)}</td>
+        <td>${fmt(x.m.prompt_tps)}</td>
+        <td class="${wall?'wall':''}">${esc(x.m.residency||'—')}${wall?' ⚠':''}</td>
+        <td>${fmtInt(x.m.output_tokens)}</td></tr>`;
+    }).join('')+`</tbody></table>`;
+
+  // VRAM-wall narrative: someone at 100% GPU, someone not
+  const full=rows.filter(x=>is100GPU(x.m.residency));
+  const spilled=rows.filter(x=>!is100GPU(x.m.residency));
+  let note='';
+  if(full.length && spilled.length){
+    const a=full.sort((p,q)=>(q.m.gen_tps||0)-(p.m.gen_tps||0))[0];
+    const b=spilled.sort((p,q)=>(p.m.gen_tps||0)-(q.m.gen_tps||0))[0];
+    const drop=(a.m.gen_tps&&b.m.gen_tps)?Math.round((1-b.m.gen_tps/a.m.gen_tps)*100):null;
+    note=`<div class="wallnote">⚠ <b>VRAM wall.</b> <b>${esc(model)}</b> stays fully on GPU on
+      <b>${esc(a.s)}</b> (${fmt(a.m.gen_tps)} tok/s) but spills to CPU on <b>${esc(b.s)}</b>
+      (${esc(b.m.residency||'partial')}, ${fmt(b.m.gen_tps)} tok/s)${drop!=null?` — ${drop}% slower`:''}.</div>`;
+  } else if(full.length===rows.length){
+    note=`<div class="goodnote">✓ Fits entirely in GPU memory on all ${rows.length} systems.</div>`;
+  }
+
+  return `<div class="crosscard"><h3>${esc(model)}</h3>
+    <span class="hint">${sysNames.length} systems</span>${tbl}${note}
+    <a class="ghost" style="text-decoration:none" href="/api/cross-report?ids=${ids}" target="_blank">Open cross-system report ↗</a>
+  </div>`;
 }
 
 function esc(s){return (s==null?'':String(s)).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
