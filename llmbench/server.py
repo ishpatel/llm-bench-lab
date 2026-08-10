@@ -14,20 +14,24 @@ small JSON API that drives the existing Runner/attachments/extract stack:
 """
 from __future__ import annotations
 
+import base64
 import datetime
 import json
 import os
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import parse_qs, urlparse
 
+from . import rag as rag_mod
 from . import report as report_mod
 from . import telemetry
 from .jobs import JobManager
 from .ollama import OllamaClient
+from .rag import RagStore
 from .runner import Runner
-from .store import RunStore
+from .store import RunStore, _safe_name
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 WEB_DIR = os.path.join(HERE, "web")
@@ -72,6 +76,7 @@ class BenchServer:
         self.base_url = base_url
         self.client = OllamaClient(base_url=base_url)
         self.store = RunStore(os.path.join(project_root, "runs"))
+        self.rag = RagStore(os.path.join(project_root, "kb"))
         self.jobs = JobManager()
         self._seq = 0
         self._seq_lock = threading.Lock()
@@ -179,6 +184,69 @@ class BenchServer:
 
         return fn
 
+    # -- RAG: knowledge-base build (queued) + ask (synchronous) ------------
+    def start_kb_build(self, payload: Dict[str, Any]) -> str:
+        name = payload["name"]
+        job_id = "kb-" + self.new_id()
+        self.jobs.submit(job_id, self._kb_job(payload), kind="kb")
+        return job_id
+
+    def _kb_job(self, payload: Dict[str, Any]):
+        server = self
+
+        def fn(log):
+            name = payload["name"]
+            embed_model = payload["embed_model"]
+            srcdir = os.path.join(server.rag.kb_dir(name), "sources")
+            os.makedirs(srcdir, exist_ok=True)
+            docs = []
+            for att in payload.get("attachments", []):
+                raw = base64.b64decode(att.get("b64", ""))
+                fname = _safe_name(att.get("filename", "file"))
+                path = os.path.join(srcdir, fname)
+                with open(path, "wb") as f:
+                    f.write(raw)
+                docs.append((fname, path))
+            log(f"ingesting {len(docs)} document(s) with {embed_model}…")
+            kb = rag_mod.build_kb(
+                name, docs, embed_model, server.client, log=log,
+                chunk_size=int(payload.get("chunk_size", 900)),
+                overlap=int(payload.get("overlap", 150)))
+            server.rag.save(kb)
+            log("knowledge base ready.")
+            return server.rag.summary(name)
+
+        return fn
+
+    def ask_kb(self, name: str, question: str, model: str,
+               k: int, options: Dict[str, Any]) -> Dict[str, Any]:
+        kb = self.rag.load(name)
+        if kb is None:
+            return {"error": f"knowledge base '{name}' not found"}
+        er = self.client.embed(kb["embed_model"], [question])
+        qvec = (er.get("embeddings") or [[]])[0]
+        t = time.perf_counter()
+        hits = rag_mod.retrieve(kb, qvec, k=k)
+        retrieve_ms = (time.perf_counter() - t) * 1000.0
+        prompt = rag_mod.build_grounded_prompt(question, hits)
+        gen = self.client.generate(model, prompt, options=options)
+        return {
+            "question": question,
+            "answer": gen.response_text,
+            "sources": hits,
+            "model": model,
+            "embed_model": kb["embed_model"],
+            "timing": {
+                "embed_ms": round(er.get("wall_ms", 0.0), 1),
+                "retrieve_ms": round(retrieve_ms, 2),
+                "ttft_ms": gen.ttft_ms,
+                "gen_tps": gen.gen_tps,
+                "wall_total_ms": gen.wall_total_ms,
+            },
+            "prompt_tokens": gen.prompt_tokens,
+            "output_tokens": gen.output_tokens,
+        }
+
 
 class Handler(BaseHTTPRequestHandler):
     server_app: BenchServer = None  # set by make_handler
@@ -233,6 +301,8 @@ class Handler(BaseHTTPRequestHandler):
                 qs = parse_qs(urlparse(self.path).query)
                 ids = [i for i in (qs.get("ids", [""])[0].split(",")) if i]
                 return self._cross_report(ids)
+            if path == "/api/kb":
+                return self._json({"kb": app.rag.list()})
             m = _match(path, "/api/runs/", "/report")
             if m is not None:
                 return self._run_report(m)
@@ -268,6 +338,27 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json({"error": "not a run bundle"}, 400)
                 rid = app.store.import_bundle(bundle)
                 return self._json({"id": rid})
+            if path == "/api/kb":
+                payload = self._read_json()
+                if not payload.get("name"):
+                    return self._json({"error": "name is required"}, 400)
+                if not payload.get("embed_model"):
+                    return self._json({"error": "embed_model is required"}, 400)
+                if not payload.get("attachments"):
+                    return self._json({"error": "at least one document is required"}, 400)
+                return self._json({"job_id": app.start_kb_build(payload)})
+            m = _match(path, "/api/kb/", "/ask")
+            if m is not None:
+                payload = self._read_json()
+                opts = {
+                    "temperature": payload.get("temperature", 0),
+                    "num_predict": payload.get("num_predict", 300),
+                    "think": bool(payload.get("think", False)),
+                }
+                res = app.ask_kb(m, payload.get("question", ""),
+                                 payload.get("model", ""),
+                                 int(payload.get("k", 4)), opts)
+                return self._json(res, 400 if res.get("error") else 200)
             self._json({"error": "not found"}, 404)
         except Exception as e:  # noqa: BLE001
             self._json({"error": f"{type(e).__name__}: {e}"}, 500)
@@ -277,6 +368,9 @@ class Handler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path.startswith("/api/runs/"):
             ok = app.store.delete(path[len("/api/runs/"):])
+            return self._json({"ok": ok}, 200 if ok else 404)
+        if path.startswith("/api/kb/"):
+            ok = app.rag.delete(path[len("/api/kb/"):])
             return self._json({"ok": ok}, 200 if ok else 404)
         self._json({"error": "not found"}, 404)
 

@@ -119,6 +119,7 @@
   <button data-tab="runs">Runs <span class="badge" id="runsCount">0</span></button>
   <button data-tab="compare">Compare <span class="badge" id="cmpCount">0</span></button>
   <button data-tab="cross">Cross-system <span class="badge" id="sysCount">0</span></button>
+  <button data-tab="copilot">Copilot <span class="badge" id="kbCount">0</span></button>
 </nav>
 <main>
   <!-- NEW RUN -->
@@ -202,6 +203,41 @@
     <div class="card" id="crossHead"></div>
     <div id="crossBody"></div>
   </section>
+
+  <!-- COPILOT (RAG) -->
+  <section id="tab-copilot" style="display:none">
+    <div class="card">
+      <label>Ask <span class="hint" id="kbActive">— no knowledge base selected</span></label>
+      <textarea id="askQ" placeholder="Ask a question grounded in the selected knowledge base…"></textarea>
+      <div class="row3" style="margin-top:12px;align-items:end">
+        <div class="field" style="margin:0"><label>Answer model</label><select id="askModel"></select></div>
+        <div class="field" style="margin:0"><label>Top-k sources</label><input id="askK" type="number" value="4" min="1"></div>
+        <div class="field" style="margin:0"><button class="btn" id="askBtn" style="width:100%">Ask</button></div>
+      </div>
+      <div id="askResult"></div>
+    </div>
+
+    <div class="card">
+      <label>Knowledge bases</label>
+      <div id="kbList"><span class="hint">none yet</span></div>
+    </div>
+
+    <details class="adv" open>
+      <summary>Build a knowledge base <span class="hint">— documents are extracted, chunked, and embedded locally</span></summary>
+      <div class="row" style="margin-top:12px">
+        <div class="field"><label>Name</label><input id="kbName" placeholder="e.g. nvidia-specs"></div>
+        <div class="field"><label>Embedding model</label><select id="kbEmbed"></select></div>
+      </div>
+      <div class="field">
+        <label>Documents <span class="hint">— pdf, docx, txt, md, html… (extracted to text)</span></label>
+        <div class="drop" id="kbDrop">Click to choose documents, or drop them here</div>
+        <input type="file" id="kbFile" multiple style="display:none">
+        <div class="chips" id="kbChips"></div>
+      </div>
+      <button class="btn" id="kbBuild">Build knowledge base</button>
+      <div id="kbBuildLog"></div>
+    </details>
+  </section>
 </main>
 <div id="modalRoot"></div>
 <div id="toastRoot"></div>
@@ -221,9 +257,10 @@ function isImg(name){return IMG_EXT.includes((name.split('.').pop()||'').toLower
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
   b.classList.add('active');
-  for(const t of ['new','runs','compare','cross']) $('#tab-'+t).style.display = (t===b.dataset.tab)?'':'none';
+  for(const t of ['new','runs','compare','cross','copilot']) $('#tab-'+t).style.display = (t===b.dataset.tab)?'':'none';
   if(b.dataset.tab==='runs') loadRuns();
   if(b.dataset.tab==='cross') renderCross();
+  if(b.dataset.tab==='copilot') loadKB();
 });
 
 // ---- system + models ----
@@ -557,6 +594,110 @@ function crossCard(model, bySys){
     <span class="hint">${sysNames.length} systems</span>${tbl}${note}
     <a class="ghost" style="text-decoration:none" href="/api/cross-report?ids=${ids}" target="_blank">Open cross-system report ↗</a>
   </div>`;
+}
+
+// ---- copilot (RAG) ----
+state.kb=[]; state.activeKB=null; state.kbAttachments=[];
+async function loadKB(){
+  // populate model dropdowns from installed models
+  const embed=$('#kbEmbed'), ans=$('#askModel');
+  const embedModels=state.models.filter(m=>m.embedding);
+  const genModels=state.models.filter(m=>m.generative&&!m.embedding);
+  embed.innerHTML=embedModels.length?embedModels.map(m=>`<option>${m.name}</option>`).join('')
+    :'<option disabled>no embedding model — run: ollama pull embeddinggemma</option>';
+  if(!ans.dataset.filled){ans.innerHTML=genModels.map(m=>`<option>${m.name}</option>`).join('');ans.dataset.filled='1';}
+  try{const d=await (await fetch('/api/kb')).json();state.kb=d.kb||[];}catch(e){return;}
+  $('#kbCount').textContent=state.kb.length;
+  if(state.activeKB && !state.kb.find(k=>k.name===state.activeKB)) state.activeKB=null;
+  if(!state.activeKB && state.kb.length) state.activeKB=state.kb[0].name;
+  renderKBList();
+}
+function renderKBList(){
+  const el=$('#kbList');
+  if(!state.kb.length){el.innerHTML='<span class="hint">No knowledge bases yet. Build one below.</span>';updateAskHead();return;}
+  el.innerHTML=state.kb.map(k=>{
+    const active=k.name===state.activeKB;
+    const docs=(k.docs||[]).map(d=>d.name).join(', ');
+    return `<div class="cmprow" style="align-items:center">
+      <label style="margin:0;font-weight:${active?700:400};display:flex;gap:8px;align-items:center;cursor:pointer">
+        <input type="radio" name="kbsel" ${active?'checked':''} style="width:auto" onchange="selectKB('${k.name}')">
+        <span>${esc(k.name)}</span></label>
+      <span class="hint">${k.n_chunks} chunks · ${(k.docs||[]).length} docs · ${esc(k.embed_model)} <span class="mono">(${esc(docs).slice(0,60)})</span>
+        <button class="link" style="color:var(--danger);margin-left:8px" onclick="delKB('${k.name}')">delete</button></span>
+    </div>`;
+  }).join('');
+  updateAskHead();
+}
+function updateAskHead(){
+  $('#kbActive').textContent = state.activeKB?`— using “${state.activeKB}”`:'— no knowledge base selected';
+}
+window.selectKB=n=>{state.activeKB=n;renderKBList();};
+window.delKB=async n=>{if(!confirm('Delete knowledge base '+n+'?'))return;
+  await fetch('/api/kb/'+encodeURIComponent(n),{method:'DELETE'});
+  if(state.activeKB===n)state.activeKB=null;loadKB();toast('Deleted '+n);};
+
+// KB build attachments
+$('#kbDrop').onclick=()=>$('#kbFile').click();
+$('#kbFile').onchange=e=>addKbFiles(e.target.files);
+['dragover','dragenter'].forEach(ev=>$('#kbDrop').addEventListener(ev,e=>{e.preventDefault();$('#kbDrop').classList.add('over');}));
+['dragleave','drop'].forEach(ev=>$('#kbDrop').addEventListener(ev,e=>{e.preventDefault();$('#kbDrop').classList.remove('over');}));
+$('#kbDrop').addEventListener('drop',e=>addKbFiles(e.dataTransfer.files));
+function addKbFiles(list){[...list].forEach(f=>{const r=new FileReader();
+  r.onload=()=>{state.kbAttachments.push({filename:f.name,b64:r.result.split(',')[1],size:f.size});renderKbChips();};
+  r.readAsDataURL(f);});}
+function renderKbChips(){const c=$('#kbChips');c.innerHTML='';
+  state.kbAttachments.forEach((a,i)=>{const chip=document.createElement('div');chip.className='chip';
+    chip.innerHTML=`📄<span>${esc(a.filename)}</span><span class="hint">${(a.size/1024).toFixed(0)}KB</span><button class="x">×</button>`;
+    chip.querySelector('.x').onclick=()=>{state.kbAttachments.splice(i,1);renderKbChips();};c.appendChild(chip);});}
+
+$('#kbBuild').onclick=async()=>{
+  const name=$('#kbName').value.trim(), embed=$('#kbEmbed').value;
+  if(!name){toast('Name the knowledge base');return;}
+  if(!state.kbAttachments.length){toast('Add at least one document');return;}
+  if(!embed||$('#kbEmbed').selectedOptions[0]?.disabled){toast('Pull an embedding model first');return;}
+  $('#kbBuild').disabled=true;
+  const res=await (await fetch('/api/kb',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name,embed_model:embed,attachments:state.kbAttachments.map(a=>({filename:a.filename,b64:a.b64}))})})).json();
+  if(res.error){toast(res.error);$('#kbBuild').disabled=false;return;}
+  const log=$('#kbBuildLog');log.innerHTML='<div class="log" id="kbLog" style="margin-top:12px"></div>';
+  const iv=setInterval(async()=>{
+    let j;try{j=await (await fetch('/api/jobs/'+res.job_id)).json();}catch(e){return;}
+    if(!j||j.error)return;$('#kbLog').textContent=(j.log||[]).join('\n');$('#kbLog').scrollTop=1e9;
+    if(j.state==='done'||j.state==='error'){clearInterval(iv);$('#kbBuild').disabled=false;
+      if(j.state==='done'){toast('Knowledge base built');state.kbAttachments=[];renderKbChips();$('#kbName').value='';
+        state.activeKB=name;loadKB();}else toast('Build failed — see log');}
+  },600);
+};
+
+$('#askBtn').onclick=async()=>{
+  const q=$('#askQ').value.trim();
+  if(!state.activeKB){toast('Select or build a knowledge base first');return;}
+  if(!q){toast('Type a question');return;}
+  $('#askBtn').disabled=true;
+  $('#askResult').innerHTML='<div class="hint" style="margin-top:12px">Embedding question · retrieving · generating…</div>';
+  try{
+    const d=await (await fetch('/api/kb/'+encodeURIComponent(state.activeKB)+'/ask',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({question:q,model:$('#askModel').value,k:+$('#askK').value})})).json();
+    if(d.error){$('#askResult').innerHTML=`<p style="color:var(--danger)">${esc(d.error)}</p>`;return;}
+    renderAnswer(d);
+  }catch(e){$('#askResult').innerHTML='<p style="color:var(--danger)">request failed</p>';}
+  finally{$('#askBtn').disabled=false;}
+};
+function renderAnswer(d){
+  const t=d.timing||{};
+  const chips=[['Embed',fmt(t.embed_ms)+' ms'],['Retrieve',fmt(t.retrieve_ms)+' ms'],
+    ['TTFT',fmt(t.ttft_ms)+' ms'],['Gen',fmt(t.gen_tps)+' tok/s'],
+    ['Prompt tok',fmtInt(d.prompt_tokens)],['Output tok',fmtInt(d.output_tokens)]];
+  const sources=(d.sources||[]).map((s,i)=>`<div class="crosscard" style="margin:8px 0;padding:10px 12px">
+    <div><b>[${i+1}]</b> <span class="mono">${esc(s.doc)}</span> <span class="hint">· similarity ${s.score}</span></div>
+    <div class="hint" style="margin-top:4px;white-space:pre-wrap">${esc(s.text.slice(0,320))}${s.text.length>320?'…':''}</div></div>`).join('');
+  $('#askResult').innerHTML=`
+    <label style="margin-top:14px">Answer <span class="hint">· ${esc(d.model)} grounded in ${esc(d.embed_model)} retrieval</span></label>
+    <pre class="out">${esc(d.answer||'(no answer)')}</pre>
+    <div class="metrics">${chips.map(c=>`<div class="metric"><div class="v">${c[1]}</div><div class="k">${c[0]}</div></div>`).join('')}</div>
+    <label style="margin-top:6px">Retrieved sources <span class="hint">— what the answer was grounded in</span></label>
+    ${sources||'<span class="hint">none</span>'}`;
 }
 
 function esc(s){return (s==null?'':String(s)).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}

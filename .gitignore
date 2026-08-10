@@ -8,6 +8,7 @@ venv/
 # Generated benchmark output (local run history — not source)
 results/
 runs/
+kb/
 
 # OS / editor cruft
 .DS_Store

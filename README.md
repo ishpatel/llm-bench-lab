@@ -178,6 +178,32 @@ python bench.py run configs/task-with-pdf.json --label "M3 Max (48GB)"
 python bench.py report results/task-with-*_*.json --out results/task.html
 ```
 
+## Copilot — local RAG over your documents
+
+The **Copilot** tab is a fully local Retrieval-Augmented Generation pipeline —
+every layer is explicit (no "Enable RAG" black box):
+
+```
+documents ─(extract.py)→ text ─(chunk)→ chunks ─(Ollama embed)→ vectors ─→ local JSON index
+   question ─→ vector ─(cosine similarity)→ top-k chunks ─→ grounded prompt ─→ LLM ─→ answer + [n] citations
+```
+
+- **Build a knowledge base:** drop in documents (PDF/docx/txt/md/… — same
+  extractor as attachments), pick an **embedding model** (`ollama pull
+  embeddinggemma`), and it chunks + embeds them into a local index under `kb/`.
+- **Ask:** the question is embedded, the most similar chunks are retrieved by
+  **pure-Python cosine similarity** (no NumPy), a grounded prompt is built, and
+  the answer comes back with **inline `[n]` citations** and the **retrieved
+  source chunks** shown beneath it.
+- **It's still a benchmark:** every answer reports per-stage timing — embedding,
+  retrieval, TTFT, generation tok/s, and token counts.
+- **Grounded, not guessing:** when the answer isn't in the sources the model is
+  instructed to say so rather than hallucinate (verifiable — ask something the
+  documents don't cover).
+
+Scriptable equivalents exist in `llmbench/rag.py` (`build_kb`, `retrieve`,
+`build_grounded_prompt`). Knowledge bases live in `kb/<name>/` and are gitignored.
+
 ## Methodology (what makes the numbers defensible)
 
 - **Warm-up runs** (`warmup`) are executed and discarded before measurement.
@@ -242,6 +268,7 @@ llmbench/
   telemetry.py          platform detection, ollama ps, nvidia-smi sampler
   extract.py            document text extraction (pdf/docx/pptx/xlsx/…)
   attachments.py        inject reference docs, encode images
+  rag.py                Copilot RAG: chunk, embed, cosine retrieval, grounding
   config.py             config + prompt loading/validation
   runner.py             matrix expansion, methodology, aggregation
   report.py             self-contained HTML + inline SVG charts
@@ -253,13 +280,16 @@ configs/                benchmark configs + prompt set
   docs/                 sample reference documents for task benchmarks
 results/                CLI output JSON + generated HTML reports
 runs/                   web-UI run history (one folder per run)
+kb/                     Copilot knowledge bases (one folder per KB)
 ```
 
 ## Roadmap (next phases)
 
-This is the benchmarking foundation. Planned additions, each building on it:
-RAG copilot over local docs, a tool-use harness, deterministic guardrails, and
-an evaluation harness that scores task success / groundedness / correct
+Built so far: the benchmarking harness, task-based benchmarking with document +
+image attachments, cross-system comparison, and the **Copilot** (local RAG).
+Planned next, each building on this foundation: a tool-use / agent harness,
+deterministic guardrails (input / retrieval / execution / output rails), and an
+evaluation harness that scores task success, groundedness, and correct
 abstention — turning raw speed numbers into a full local-AI product story.
 
 ## License

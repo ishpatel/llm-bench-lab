@@ -113,6 +113,19 @@ class OllamaClient:
             })
         return out
 
+    def embed(self, model: str, inputs: List[str]) -> Dict[str, Any]:
+        """Embed one or more strings via /api/embed. Returns
+        {embeddings: [[...]], total_ms, prompt_tokens}."""
+        t0 = time.perf_counter()
+        data = self._post("/api/embed", {"model": model, "input": inputs})
+        wall_ms = (time.perf_counter() - t0) * 1000.0
+        return {
+            "embeddings": data.get("embeddings", []),
+            "wall_ms": wall_ms,
+            "total_ms": (data.get("total_duration") or 0) / NS_PER_MS,
+            "prompt_tokens": data.get("prompt_eval_count"),
+        }
+
     def unload(self, model: str) -> None:
         """Ask Ollama to evict a model from memory so the next call measures a
         genuine cold start. Best-effort; ignores failures."""
