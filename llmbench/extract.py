@@ -203,7 +203,7 @@ def _rtf(path: str) -> Extraction:
     raw = re.sub(r"\\[a-zA-Z]+-?\d* ?", "", raw)
     raw = raw.replace("{", "").replace("}", "")
     return Extraction(raw.strip(), "rtf (stdlib strip)",
-                      ["basic RTF stripper — install macOS textutil for fidelity"])
+                      ["basic RTF stripper; install macOS textutil for fidelity"])
 
 
 def _legacy_doc(path: str) -> Extraction:
@@ -255,7 +255,7 @@ def _pdf_builtin(path: str) -> Extraction:
     text = re.sub(r"[ \t]+\n", "\n", text)
     text = re.sub(r"\n{3,}", "\n\n", text).strip()
     if not text:
-        warnings.append("no extractable text — likely a scanned/image PDF or "
+        warnings.append("no extractable text: likely a scanned/image PDF or "
                         "custom font encoding; install poppler `pdftotext` or OCR it")
     else:
         printable = sum(c.isprintable() or c in "\n\t" for c in text)

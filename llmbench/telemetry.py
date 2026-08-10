@@ -148,7 +148,7 @@ def describe_system_deep() -> Dict[str, Any]:
         memsize = _run(["sysctl", "-n", "hw.memsize"])
         if memsize and memsize.isdigit():
             mem["total_gb"] = round(int(memsize) / 2**30)
-        mem["type"] = "Unified — one pool shared by CPU, GPU and Neural Engine"
+        mem["type"] = "Unified memory: one pool shared by CPU, GPU and Neural Engine"
 
         sp = _run(["system_profiler", "SPDisplaysDataType"], timeout=25) or ""
         mg = re.search(r"Chipset Model:\s*(.+)", sp)
@@ -163,7 +163,7 @@ def describe_system_deep() -> Dict[str, Any]:
 
         if env["arch"] == "arm64":
             npu = {"name": "Apple Neural Engine", "status": "present",
-                   "note": "Not used for these benchmarks — Ollama runs LLM "
+                   "note": "Not used for these benchmarks; Ollama runs LLM "
                            "inference on the GPU via Metal."}
         else:
             npu = {"name": None, "status": "none detected"}
@@ -222,7 +222,7 @@ def describe_system_deep() -> Dict[str, Any]:
                 mem["total_gb"] = round(st.ullTotalPhys / 2**30)
             except Exception:
                 pass
-        mem["type"] = ("System RAM — separate from the GPU's VRAM"
+        mem["type"] = ("System RAM, separate from the GPU's VRAM"
                        if gpu.get("vram_gb") else "System RAM")
         npu = {"name": None, "status": "not detected",
                "note": "Dedicated NPUs (on AI PCs) are not used by Ollama."}

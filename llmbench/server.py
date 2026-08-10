@@ -155,7 +155,7 @@ class BenchServer:
             cells = result.get("cells", [])
             if not cells:
                 raise RuntimeError(
-                    f"No result produced — is '{payload.get('model')}' installed?")
+                    f"No result produced; is '{payload.get('model')}' installed?")
             cell = cells[0]
             summary = summarize(cell, result["meta"])
             meta = {

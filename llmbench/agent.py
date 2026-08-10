@@ -75,7 +75,7 @@ def _get_gpu_status(_args: Dict[str, Any]) -> str:
 
 def _set_power_limit(args: Dict[str, Any]) -> str:
     watts = int(args["watts"])
-    return (f"Power limit set to {watts} W (SIMULATED — approval granted, "
+    return (f"Power limit set to {watts} W (SIMULATED: approval granted, "
             f"validated within safe range; no hardware was modified).")
 
 
@@ -138,7 +138,7 @@ class Agent:
         if not ir.allowed:
             log(f"input rail ✗ {ir.reason}")
             res.blocked = True
-            res.answer = ("Request refused by the input guardrail — it looked "
+            res.answer = ("Request refused by the input guardrail; it looked "
                           "like a prompt-injection or disallowed action.")
             return res
 

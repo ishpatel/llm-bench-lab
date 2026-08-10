@@ -11,6 +11,45 @@ Nothing but the Python 3.9+ standard library. Same code runs on macOS (Metal)
 and Windows/Linux (CUDA); on NVIDIA it additionally samples `nvidia-smi` for
 GPU utilization, VRAM, power and temperature.
 
+## What it looks like
+
+The whole thing runs locally in your browser. Every metric is written in plain
+English so anyone can read it.
+
+**A benchmark run, scored.** Speed metrics each carry a plain-English verdict,
+alongside the model's answer and your own 1&ndash;5 quality rating.
+
+![Run detail with metric verdicts and a four-dimension rating](docs/screenshots/01-run-detail.png)
+
+**Your hardware, explained.** A breakdown of CPU, GPU, NPU, memory and the
+software environment, with a note on what each part actually does.
+
+![System hardware panel](docs/screenshots/02-system.png)
+
+**Ask your documents (RAG).** Grounded answers with numbered citations and
+per-stage timing (embedding, retrieval, generation).
+
+![Copilot RAG answer with citations](docs/screenshots/03-copilot.png)
+
+**Tools, with guardrails.** The agent proposes an action; deterministic rails
+decide whether it runs. Here an approval rail holds a power-limit change.
+
+![Agent guardrail trace](docs/screenshots/04-agent.png)
+
+**Automated trust tests.** Groundedness and safety scored reproducibly: every
+adversarial request was prevented.
+
+![Guardrail evaluation scorecard](docs/screenshots/06-evals.png)
+
+**Benchmark history.** Every run is saved, searchable, sortable, rateable, and
+selectable for side-by-side comparison.
+
+![Benchmark history with quality scores](docs/screenshots/07-runs.png)
+
+**Shareable HTML report.** Charts and a detail table, each number annotated.
+
+![Generated HTML report](docs/screenshots/05-report.png)
+
 ## Why this design
 
 An LLM's tokens/sec is only one number. This harness treats local inference as
