@@ -132,6 +132,7 @@ python bench.py report results/quant-sweep_*.json --out results/report.html
 | `export RUN_ID` | Export a web-UI run to a portable `.llmbench.json` bundle |
 | `import BUNDLE` | Import a run bundle from another machine |
 | `eval SUITE` | Run an evaluation suite (`rag`, `guardrails`, or a JSON path) |
+| `adopt RESULTS...` | Import CLI results files into the web-UI run history, one run per cell |
 
 Useful flags: `run --label "<name>"` (system label shown in the report),
 `run --runs N` (override measured repeats), `--base-url` (remote Ollama).

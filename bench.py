@@ -142,6 +142,75 @@ def cmd_import(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_adopt(args: argparse.Namespace) -> int:
+    """Turn CLI results files into web-UI runs.
+
+    A CLI batch writes one file containing many cells; the web UI stores one
+    folder per run. This splits each cell into its own run so batch results
+    show up in the Runs, Compare and Cross-System views alongside interactive
+    ones, without re-running anything.
+    """
+    from llmbench.server import summarize
+    from llmbench.store import RunStore
+
+    store = RunStore(os.path.join(HERE, "runs"))
+    existing = {r.get("source_cell") for r in store.list() if r.get("source_cell")}
+    adopted = skipped = 0
+
+    for path in sorted(args.results):
+        with open(path, "r", encoding="utf-8") as f:
+            result = json.load(f)
+        meta_in = result.get("meta", {})
+        if not result.get("cells"):
+            print(f"  ! {os.path.basename(path)}: no cells, skipping", file=sys.stderr)
+            continue
+        stamp = datetime.datetime.fromtimestamp(
+            os.path.getmtime(path)).isoformat(timespec="seconds")
+
+        for i, cell in enumerate(result["cells"], 1):
+            # Stable identity so re-adopting the same file does not duplicate.
+            fingerprint = f"{os.path.basename(path)}#{cell['label']}"
+            if fingerprint in existing:
+                skipped += 1
+                continue
+            run_id = store._unique_id(
+                f"{_slug(meta_in.get('config_name','run'))}-"
+                f"{_slug(meta_in.get('system',{}).get('label','sys'))}-{i:02d}")
+            summary = summarize(cell, meta_in)
+            store.save(run_id, {
+                "id": run_id,
+                "created": stamp,
+                "state": "done",
+                "name": f"{meta_in.get('config_name','run')} · {cell['label']}",
+                "model": cell.get("model", ""),
+                "engine": meta_in.get("engine", "Ollama"),
+                "system": meta_in.get("system", {}),
+                "options": meta_in.get("options", {}),
+                "num_ctx": cell.get("context_length"),
+                "runs": meta_in.get("runs"),
+                "warmup": meta_in.get("warmup"),
+                "measure_cold_start": meta_in.get("measure_cold_start"),
+                "prompt": {"text": cell.get("prompt_text", ""),
+                           "files": [], "images": []},
+                "metrics": summary["metrics"],
+                "attachments": cell.get("attachments", {}),
+                "output": summary["output"],
+                "thinking_chars": summary["thinking_chars"],
+                "ollama_version": meta_in.get("ollama_version", ""),
+                "source_cell": fingerprint,
+                "adopted_from": os.path.basename(path),
+            # The per-run report needs a results-shaped document, so give it
+            # this cell alone under the original run's metadata.
+            }, {"meta": meta_in, "cells": [cell]})
+            adopted += 1
+        print(f"  {os.path.basename(path)}: {len(result['cells'])} cell(s)")
+
+    print(f"\nAdopted {adopted} run(s)" +
+          (f", skipped {skipped} already present" if skipped else ""))
+    print("Open the web UI to browse them: python bench.py serve")
+    return 0
+
+
 def cmd_eval(args: argparse.Namespace) -> int:
     from llmbench import evals
     from llmbench.agent import Agent
@@ -218,6 +287,10 @@ def main(argv=None) -> int:
     pim = sub.add_parser("import", help="import a run bundle from another machine")
     pim.add_argument("bundle")
     pim.set_defaults(func=cmd_import)
+
+    pad = sub.add_parser("adopt", help="import CLI results files into the web-UI run history")
+    pad.add_argument("results", nargs="+", help="one or more results JSON files")
+    pad.set_defaults(func=cmd_adopt)
 
     pev = sub.add_parser("eval", help="run an evaluation suite (rag | guardrails)")
     pev.add_argument("suite", help="'rag', 'guardrails', or a path to a suite JSON")
