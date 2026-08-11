@@ -1,0 +1,20 @@
+{
+  "synthetic": true,
+  "dates": [
+    {
+      "item": "Renter insurance renewal",
+      "date": "2027-01-01",
+      "lead_days": 30
+    },
+    {
+      "item": "Passport expiration",
+      "date": "2028-05-12",
+      "lead_days": 180
+    },
+    {
+      "item": "Vehicle registration renewal",
+      "date": "2026-11-30",
+      "lead_days": 30
+    }
+  ]
+}

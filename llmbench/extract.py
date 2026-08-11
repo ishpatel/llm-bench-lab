@@ -14,6 +14,8 @@ encodings need `pdftotext` (poppler) or OCR — the extractor flags these cases.
 """
 from __future__ import annotations
 
+import base64
+import binascii
 import html as html_mod
 import os
 import re
@@ -229,6 +231,44 @@ def _pdf(path: str) -> Extraction:
     return _pdf_builtin(path)
 
 
+def _pdf_decode_stream(raw: bytes) -> Optional[bytes]:
+    """Decode a PDF content stream through the filter chains seen in the wild.
+
+    Writers stack filters, e.g. ReportLab defaults to
+    `/Filter [/ASCII85Decode /FlateDecode]`, so trying Flate alone silently
+    misses their text. Rather than parse each stream's filter dictionary, try
+    the plausible chains in order and keep the first that yields something
+    that looks like a content stream."""
+
+    def looks_like_content(b: bytes) -> bool:
+        return b"BT" in b or b"Tj" in b or b"TJ" in b
+
+    def inflate(b: bytes) -> bytes:
+        return zlib.decompress(b)
+
+    def a85(b: bytes) -> bytes:
+        # Adobe framing (<~ ... ~>) is optional; try it first, then bare.
+        try:
+            return base64.a85decode(b, adobe=True)
+        except Exception:
+            return base64.a85decode(b)
+
+    chains = (
+        inflate,                       # /FlateDecode
+        lambda b: inflate(a85(b)),     # /ASCII85Decode + /FlateDecode
+        a85,                           # /ASCII85Decode
+        lambda b: inflate(binascii.unhexlify(re.sub(rb"[^0-9A-Fa-f]", b"", b.split(b">")[0]))),
+    )
+    for chain in chains:
+        try:
+            out = chain(raw)
+        except Exception:
+            continue
+        if out and (looks_like_content(out) or len(out) > 32):
+            return out
+    return raw if looks_like_content(raw) else None
+
+
 def _pdf_builtin(path: str) -> Extraction:
     with open(path, "rb") as f:
         data = f.read()
@@ -240,12 +280,7 @@ def _pdf_builtin(path: str) -> Extraction:
         if end == -1:
             continue
         raw = data[start:end].rstrip(b"\r\n")
-        decoded: Optional[bytes] = None
-        try:
-            decoded = zlib.decompress(raw)
-        except Exception:
-            if b"BT" in raw or b"Tj" in raw or b"TJ" in raw:
-                decoded = raw  # uncompressed content stream
+        decoded = _pdf_decode_stream(raw)
         if decoded is None:
             continue
         piece = _pdf_content_text(decoded)

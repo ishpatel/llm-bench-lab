@@ -1,0 +1,13 @@
+{
+  "synthetic": true,
+  "monthly_targets": {
+    "housing": 2400,
+    "utilities": 220,
+    "groceries": 500,
+    "transportation": 250,
+    "subscriptions": 90,
+    "dining": 300,
+    "savings": 1500
+  },
+  "note": "Subscription target excludes annual software licenses reimbursed by employer."
+}

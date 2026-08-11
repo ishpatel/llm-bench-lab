@@ -1,0 +1,26 @@
+{
+  "synthetic": true,
+  "devices": [
+    {
+      "name": "Living Room Lamp",
+      "type": "smart_light",
+      "room": "living_room",
+      "platform": "Matter",
+      "firmware": "2.8.1"
+    },
+    {
+      "name": "Front Door Sensor",
+      "type": "contact_sensor",
+      "room": "entry",
+      "platform": "Thread",
+      "firmware": "1.4.0"
+    },
+    {
+      "name": "Bedroom Air Monitor",
+      "type": "air_quality",
+      "room": "bedroom",
+      "platform": "Wi-Fi",
+      "firmware": "3.2.7"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "synthetic": true,
+  "tasks": [
+    {
+      "id": 1,
+      "task": "Replace HVAC filter",
+      "due": "2026-10-17",
+      "status": "open"
+    },
+    {
+      "id": 2,
+      "task": "Review duplicate CloudBox charge",
+      "due": "2026-08-12",
+      "status": "open"
+    },
+    {
+      "id": 3,
+      "task": "Pack portable battery for Seattle",
+      "due": "2026-09-17",
+      "status": "open"
+    }
+  ]
+}

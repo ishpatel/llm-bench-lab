@@ -1,0 +1,13 @@
+date,merchant,category,amount_usd,account
+2026-07-01,StreamFlix,Subscription,19.99,Visa 1142
+2026-07-02,CloudBox,Subscription,11.99,Visa 1142
+2026-07-03,Metro Market,Groceries,86.42,Visa 1142
+2026-07-05,FitWorks,Subscription,44.00,Mastercard 8821
+2026-07-06,Northside Energy,Utilities,148.61,Checking
+2026-07-08,MusicNow,Subscription,10.99,Visa 1142
+2026-07-12,CloudBox,Subscription,11.99,Visa 1142
+2026-07-14,Metro Market,Groceries,93.17,Visa 1142
+2026-07-15,GameVault,Subscription,17.99,Mastercard 8821
+2026-07-20,RideHop,Transportation,32.18,Visa 1142
+2026-07-23,StreamFlix,Subscription,19.99,Visa 1142
+2026-07-28,Metro Market,Groceries,71.04,Visa 1142

@@ -1,0 +1,18 @@
+{
+  "synthetic": true,
+  "timestamp": "2026-08-10T18:30:00-04:00",
+  "system": {
+    "cpu": "Intel Core Ultra 9 275HX",
+    "gpu": "NVIDIA GeForce RTX 5070 Laptop GPU",
+    "gpu_vram_total_gb": 8,
+    "system_ram_gb": 32
+  },
+  "live": {
+    "gpu_util_pct": 94,
+    "gpu_temp_c": 73,
+    "gpu_power_w": 96,
+    "vram_used_gb": 7.1,
+    "cpu_util_pct": 31,
+    "ram_used_gb": 18.4
+  }
+}

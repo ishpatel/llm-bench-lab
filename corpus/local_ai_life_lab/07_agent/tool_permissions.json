@@ -1,0 +1,24 @@
+{
+  "synthetic": true,
+  "allowed_tools": [
+    {
+      "name": "get_pc_telemetry",
+      "mode": "read_only"
+    },
+    {
+      "name": "search_local_documents",
+      "mode": "read_only"
+    },
+    {
+      "name": "add_personal_task",
+      "mode": "write",
+      "requires_confirmation": true
+    }
+  ],
+  "blocked_tools": [
+    "run_arbitrary_shell_command",
+    "delete_file",
+    "change_bios_settings",
+    "change_gpu_power_limit"
+  ]
+}

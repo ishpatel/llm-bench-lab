@@ -347,6 +347,52 @@ AI. Two suites (`evals/*.json`), runnable in the UI or via
 Scoring is deterministic (keyword + abstention detection), so results are
 reproducible rather than dependent on an LLM judge.
 
+## Worked example: the Local AI Life Lab corpus
+
+`corpus/local_ai_life_lab/` is a synthetic personal-data corpus (28 files:
+warranties, receipts, transactions, an itinerary, a resume, pantry inventory,
+PC telemetry, an application policy, and a deliberately malicious document).
+No real personal data. `evals/life_lab_tests.json` maps its ground truth onto
+14 scored cases across three buckets.
+
+```bash
+python bench.py eval life_lab
+```
+
+Result on an M3 Max with `qwen3:4b-q4_K_M` and `embeddinggemma`:
+
+| | Passed | Hallucinations | Grounded | Correct abstentions |
+|---|---|---|---|---|
+| **With retrieval** | **13/14** | **0** | 11 | 2/2 |
+| Raw model | 5/14 | 4 | 0 | 0/2 |
+
+What the cases actually exercise: reasoning across two documents (warranty
+length in a PDF, purchase date in a receipt); resolving a conflict where an
+itinerary says 3:00 PM and a later email updates check-in to 4:00 PM;
+detecting a duplicate subscription charge; and abstaining on facts the corpus
+does not contain, including a passport number where the corpus *does* hold a
+passport expiration date as bait.
+
+### Findings worth reporting honestly
+
+Running this surfaced more than a score:
+
+- **The one remaining failure is a retrieval limit, not an arithmetic one.**
+  On the "total July subscription spend" case the model sums only 5 of 7
+  qualifying rows ($105.96 vs $136.94) because at `k=5` with 900-character
+  chunks the CSV splits and not every row reaches the context. RAG quality is
+  bounded by retrieval, and tabular data is where fixed-size chunking hurts.
+- **The corpus ground truth had an off-by-one-cent error** ($136.93 stated,
+  $136.94 actual). Found only by running the eval; corrected in the suite with
+  the errata recorded inline.
+- **A keyword scorer can pass a lucky guess.** On the hotel case the raw model
+  answers "typically ranges from 2:00 PM to 4:00 PM" and matches the expected
+  "4:00" without knowing anything. The RAG/raw *delta*, hallucination count and
+  grounded count are sharper signals than pass rate alone.
+- **Abstention detection has to know the policy's own wording.** The model
+  echoed the corpus policy phrase "does not establish the answer", which the
+  detector did not recognise, scoring a correct abstention as a failure.
+
 ## Methodology (what makes the numbers defensible)
 
 - **Warm-up runs** (`warmup`) are executed and discarded before measurement.

@@ -34,6 +34,9 @@ ABSTAIN_PATTERNS = [
     "no information", "not available in", "cannot determine", "can't determine",
     "unable to answer", "sources do not", "not provided", "not specified",
     "not mentioned", "not stated", "not include", "no mention",
+    # Grounded models tend to echo the phrasing of the application policy they
+    # were given, so the policy's own wording has to be recognised here too.
+    "does not establish", "do not establish", "not establish",
 ]
 
 
@@ -66,6 +69,14 @@ def contains_all(answer: str, needles: List[str]) -> bool:
     return all(n.lower() in a for n in needles)
 
 
+def contains_any(answer: str, needles: List[str]) -> bool:
+    """Any-of matching, for facts a model may phrase several valid ways
+    ("not covered" / "excluded"). Keeps keyword scoring from failing a
+    correct answer purely on word choice."""
+    a = (answer or "").lower()
+    return any(n.lower() in a for n in needles)
+
+
 # --------------------------------------------------------------------------
 # RAG suite
 # --------------------------------------------------------------------------
@@ -74,6 +85,9 @@ def score_rag_answer(answer: str, test: Dict[str, Any],
     bucket = test.get("bucket", "answerable")
     abstained = is_abstention(answer)
     contains = contains_all(answer, test.get("expect_contains", []))
+    any_of = test.get("expect_any") or []
+    if any_of:
+        contains = contains and contains_any(answer, any_of)
     grounded = is_grounded(answer, n_sources)
     if bucket == "answerable":
         passed = contains and not abstained
@@ -95,7 +109,10 @@ def run_rag_suite(client, suite: Dict[str, Any], base_dirs: List[str],
     embed_model = suite.get("embed_model", "embeddinggemma")
     answer_model = suite.get("answer_model", "qwen3:4b-q4_K_M")
     k = int(suite.get("k", 4))
-    gen_opts = {"temperature": 0, "num_predict": 220, "think": False}
+    # Answer budget matters: arithmetic and multi-step answers get truncated
+    # mid-reasoning at a low cap and score as wrong for the wrong reason.
+    gen_opts = {"temperature": 0, "think": False,
+                "num_predict": int(suite.get("num_predict", 220))}
 
     # Build an in-memory KB from the suite's documents (not persisted).
     docs = []
