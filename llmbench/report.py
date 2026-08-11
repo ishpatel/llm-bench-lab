@@ -515,8 +515,10 @@ _PAGE = """<!DOCTYPE html>
   <footer>
     How this was measured: each configuration runs warm-up passes (thrown away), then several
     timed repeats. The median is charted, with the fastest-to-slowest range shown alongside.
-    Generation settings are held constant so comparisons are fair. Time to first token is
-    wall-clock time to the first streamed word on warm runs; the one-off cold-start load is
+    Generation settings are held constant so comparisons are fair. Time to first visible word is
+    measured wall-clock on warm runs; compute time to first token separately records when the
+    model began producing any token, including hidden reasoning, and the two are identical on
+    models that do not reason privately. The one-off cold-start load is
     timed separately. Note that Apple Silicon shares one memory pool between CPU and GPU, so its
     memory figures are not directly comparable to a discrete NVIDIA GPU with separate VRAM. Read
     a cross-system comparison as a real-world experience comparison, not a raw GPU benchmark.
