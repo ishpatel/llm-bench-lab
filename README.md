@@ -46,6 +46,12 @@ selectable for side-by-side comparison.
 
 ![Benchmark history with quality scores](docs/screenshots/07-runs.png)
 
+**Same model, two machines.** The cross-system view pairs runs by model and flags
+the VRAM wall automatically, with the throughput cost computed. Both models below
+are about 8.1 GB: they fit in 48 GB of unified memory and spill on an 8 GB card.
+
+![Cross-system comparison flagging the VRAM wall](docs/screenshots/08-cross-system.png)
+
 **Shareable HTML report.** Charts and a detail table, each number annotated.
 
 ![Generated HTML report](docs/screenshots/05-report.png)
