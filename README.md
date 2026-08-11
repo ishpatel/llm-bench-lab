@@ -226,10 +226,15 @@ python bench.py run configs/mac.json --label "RTX 5070 (8GB)"
 python bench.py report results/cross-system_*.json --out results/cross.html
 ```
 
-Either way, on the 8 GB RTX laptop `gemma3:12b` (~8.1 GB) and `qwen3:4b-fp16`
-(~8.1 GB) are where you expect the wall: residency flips from `100% GPU` to a
-CPU/GPU split and generation throughput collapses, while both fit comfortably in
-the M3 Max's unified memory. That contrast is the centerpiece of the writeup.
+**Hypothesis (not yet measured).** On the 8 GB RTX laptop, `gemma3:12b`
+(~8.1 GB) and `qwen3:4b-fp16` (~8.1 GB) should expose the VRAM boundary, while
+both fit comfortably in the M3 Max's unified memory. The test is whether
+residency actually changes from `100% GPU` to a CPU/GPU split, and if so, how
+much throughput that costs. `qwen3:4b-q4_K_M` (~2.6 GB) serves as the
+fits-comfortably control.
+
+The result is recorded once measured, whichever way it comes out. Writing the
+conclusion before running the experiment is how benchmarks become marketing.
 
 ## Reference files, documents & images (task-based benchmarking)
 
@@ -416,7 +421,8 @@ Running this surfaced more than a score:
 
 | Metric | Meaning |
 |---|---|
-| `ttft_ms` | Wall-clock time to first token (perceived responsiveness) |
+| `ttft_ms` | Time to first compute token, including hidden reasoning (the model starts producing) |
+| `ttfv_ms` | Time to first **visible** token (what the user actually perceives). Identical to `ttft_ms` on non-thinking models; on a reasoning model these diverged 231 ms vs 2,122 ms in one measured run |
 | `gen_tps` | Output tokens/sec = `eval_count / eval_duration` (decode speed) |
 | `prompt_tps` | Prefill tokens/sec = `prompt_eval_count / prompt_eval_duration` |
 | `load_ms` | Model load portion (cold start) |

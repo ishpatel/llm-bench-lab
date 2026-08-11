@@ -67,11 +67,24 @@ def cmd_run(args: argparse.Namespace) -> int:
         cfg["runs"] = args.runs
     prompts = cfg_mod.load_prompts(args.prompts)
 
-    client = OllamaClient(base_url=cfg["base_url"])
-    if not client.is_up():
-        print(f"error: Ollama not reachable at {cfg['base_url']} "
-              f"(start it with `ollama serve`).", file=sys.stderr)
-        return 1
+    # Validate the engine this config actually uses. A config pointing at an
+    # external OpenAI-compatible endpoint (trtllm-serve, NIM, vLLM) must not
+    # require Ollama to be running as well: on the RTX machine the TensorRT-LLM
+    # server may be the only engine present.
+    backend = cfg.get("backend") or None
+    if backend and backend.get("type") == "openai":
+        from llmbench.backends import OpenAICompatClient
+        url = backend.get("base_url", "")
+        if not OpenAICompatClient(url).is_up():
+            print(f"error: {backend.get('label', 'endpoint')} not reachable at "
+                  f"{url} (start the server, e.g. `trtllm-serve <model>`).",
+                  file=sys.stderr)
+            return 1
+    else:
+        if not OllamaClient(base_url=cfg["base_url"]).is_up():
+            print(f"error: Ollama not reachable at {cfg['base_url']} "
+                  f"(start it with `ollama serve`).", file=sys.stderr)
+            return 1
 
     # Resolve relative attachment paths against the config dir, the prompts
     # dir, and the current working directory (in that order).
