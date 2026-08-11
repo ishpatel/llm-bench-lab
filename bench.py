@@ -189,7 +189,7 @@ def cmd_report(args: argparse.Namespace) -> int:
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="bench.py", description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--base-url", default="http://localhost:11434",
+    p.add_argument("--base-url", default="http://127.0.0.1:11434",
                    help="Ollama base URL (default: %(default)s)")
     sub = p.add_subparsers(dest="cmd", required=True)
 

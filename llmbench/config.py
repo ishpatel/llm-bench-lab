@@ -8,7 +8,11 @@ from typing import Any, Dict, List, Optional
 DEFAULTS: Dict[str, Any] = {
     "name": "benchmark",
     "system_label": None,          # None => auto-detect
-    "base_url": "http://localhost:11434",
+    # 127.0.0.1 rather than "localhost": on Windows the name resolves to IPv6
+    # ::1 first, and the failed attempt before falling back to IPv4 added a
+    # measured 2,071 ms +/- 12.9 ms to every request. That overhead is invisible
+    # to Ollama's own timings, so it silently corrupts wall-clock latency.
+    "base_url": "http://127.0.0.1:11434",
     "runs": 3,                      # measured repeats per cell (median reported)
     "warmup": 1,                    # discarded warm-up runs per cell
     "measure_cold_start": True,     # unload then time a genuine cold start

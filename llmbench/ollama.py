@@ -63,7 +63,8 @@ class GenerationResult:
 
 
 class OllamaClient:
-    def __init__(self, base_url: str = "http://localhost:11434", timeout: float = 600.0):
+    def __init__(self, base_url: str = "http://127.0.0.1:11434",
+                 timeout: float = 600.0):
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self._cap_cache: Dict[str, List[str]] = {}

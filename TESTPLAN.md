@@ -26,6 +26,36 @@ measured.
 - Note the NVIDIA driver version and keep it fixed across the whole campaign:
   `nvidia-smi --query-gpu=driver_version --format=csv`
 
+**Use 127.0.0.1, never "localhost", on Windows.**
+
+This was measured, not theorised. Pointing the harness at `http://localhost:11434`
+on the RTX machine added a constant **2,071 ms plus or minus 12.9 ms** to every
+single request: identical across all fifteen cells regardless of model size or
+generation speed. The cause is Windows resolving `localhost` to IPv6 `::1` first
+and paying a timeout before falling back to IPv4.
+
+The reason it is dangerous rather than merely annoying is that the delay happens
+*before* the request reaches Ollama, so Ollama's own reported timings look
+perfectly healthy while wall-clock latency is wrong by two seconds. Generation
+throughput stays valid, because it is derived from server-side counters; every
+wall-clock latency number is silently ruined.
+
+The default is now `127.0.0.1`, which measured 21.5 ms of overhead on the same
+machine. If you ever override it, override it to an IP address. To check a
+result file for the artifact:
+
+```bash
+python bench.py report results/<file>.json --out /tmp/check.html
+```
+
+or directly:
+
+```bash
+python -c "import json,glob,statistics as st; d=json.load(open(sorted(glob.glob('results/cross-system_*.json'))[-1])); g=[r['ttfv_ms']-(r.get('load_ms') or 0)-(r.get('prompt_eval_ms') or 0) for c in d['cells'] for r in c['runs'] if r.get('ttfv_ms')]; print('overhead median:', round(st.median(g),1), 'ms')"
+```
+
+Under about 100 ms is fine. Anything near 2,000 ms means the run is contaminated.
+
 **Precondition to steady state. Do not start cold.**
 
 This one is counterintuitive and matters more than it looks. The runner executes
