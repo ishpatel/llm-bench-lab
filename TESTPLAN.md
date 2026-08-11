@@ -22,12 +22,39 @@ measured.
 - Plugged into AC, not battery.
 - Windows power mode set to Best Performance, and the OEM performance profile
   (Legion / Omen / Alienware control panel) set to its performance preset.
-- Let the machine sit idle a few minutes before the first run so it starts cool.
-  A thermally saturated laptop reports lower clocks and will make run 1 look
-  faster than run 10 for reasons that have nothing to do with the model.
 - Close other GPU consumers, including browsers with hardware acceleration.
 - Note the NVIDIA driver version and keep it fixed across the whole campaign:
   `nvidia-smi --query-gpu=driver_version --format=csv`
+
+**Precondition to steady state. Do not start cold.**
+
+This one is counterintuitive and matters more than it looks. The runner executes
+cells sequentially with no cooldown or shuffling between them, so on a laptop
+the first model tested runs on a cool chip at high boost clocks and the last one
+runs on a heat-soaked chip at lower clocks. Start from cold and thermal state
+becomes correlated with model order, which means a quantization "result" could
+partly be a measurement of when in the sequence each model happened to run.
+
+So warm the machine to a stable operating point first, then benchmark:
+
+```bash
+python bench.py run configs/smoke.json --label "warmup, discard"
+```
+
+Run that two or three times, or leave any GPU workload going, until temperature
+and power flatten out. Watch until the numbers stop climbing:
+
+```bash
+nvidia-smi --query-gpu=temperature.gpu,power.draw,clocks.sm --format=csv -l 2
+```
+
+Then delete those warm-up runs and start the real campaign.
+
+**Order control.** After Phase 1, rerun the quantization sweep with the model
+order reversed (edit the `models` list in a copy of the config). If Q4 still
+beats Q8 when Q4 runs *last* on a hot machine, the effect is the model rather
+than the thermals. If the ordering changes the answer, you have found a thermal
+confound and that is the finding to report.
 
 **On the M3 Max:**
 
@@ -111,6 +138,28 @@ finding than the expected result.
 you can say something about whether the quality cost of Q4 was visible at all.
 Speed without a quality judgment is half an answer.
 
+**Interpretation rule, and this is the one that protects your credibility.**
+A precision comparison is only clean while every variant stays fully GPU
+resident. On the RTX, `qwen3:4b-fp16` is about 8.1 GB and will probably cross
+the 8 GB boundary, at which point its slowdown is no longer attributable to
+precision alone. It becomes precision *plus* a larger footprint *plus* offload
+overhead, three effects at once.
+
+So if the RTX returns something like Q4 85 tok/s at 100% GPU, Q8 57 tok/s at
+100% GPU, FP16 9 tok/s on a CPU split, do not write:
+
+> "FP16 is 6x slower because higher precision needs more bandwidth."
+
+Write:
+
+> "Q4 versus Q8 is the clean within-VRAM precision comparison. FP16 crossed the
+> memory boundary, so its larger loss combines higher precision with offload
+> overhead and cannot be attributed to precision alone."
+
+On the M3 Max all three stay resident, so that machine gives you the clean
+three-point precision curve and the RTX gives you the boundary. Use each for
+what it can actually support.
+
 ---
 
 ## Phase 2: the VRAM wall
@@ -160,15 +209,36 @@ consumer."*
 
 ---
 
-## Phase 3: does context length move the boundary?
+## Phase 3: does context capacity move the boundary?
 
-The subtlest result and the one that best demonstrates understanding.
+The subtlest result and the one that best demonstrates understanding. It also
+contains a distinction that is easy to get wrong, so it is worth being precise.
 
-**Hypothesis.** Growing the context window increases KV-cache memory
-proportionally to context length. On the RTX, a model that fits comfortably at
-4K may stop fitting at 16K or 32K without changing a single weight. Prefill work
-also grows, so time to first visible token should rise with context even when
-residency does not change.
+**Two different things get called "context".**
+
+1. **Allocated capacity** (`num_ctx`): how large a context window the runtime
+   reserves. The KV cache is sized against this, so raising it costs memory
+   whether or not you use the space.
+2. **Actual input length**: how many tokens the model really has to read. This
+   is what drives prefill work and therefore time to first token.
+
+**This experiment tests capacity only.** The prompt is held constant at roughly
+490 tokens across all four cells; only `num_ctx` changes from 4K to 32K.
+
+**Hypothesis.** Increasing allocated context capacity increases memory
+requirements and may push a previously GPU-resident model across the VRAM
+boundary, without changing a single weight and without changing the amount of
+text the model reads. Latency should be roughly flat here, because the input did
+not grow.
+
+**Separately** (not tested by this config): increasing the actual number of
+input tokens increases prefill work and should raise time to first visible
+token. If you want that measurement, attach documents of increasing size to a
+prompt rather than raising `num_ctx`, and report it as a distinct experiment.
+
+Do not present a latency change from this run as evidence about long-context
+cost. If latency does move here, the interesting explanation is memory pressure
+or offload, not prefill volume.
 
 ```bash
 python bench.py run configs/context-scaling.json --label "RTX 5070 (8GB)"
@@ -180,16 +250,16 @@ python bench.py run configs/context-scaling.json --label "RTX 5070 (8GB)"
 python bench.py run configs/context-scaling.json --label "M3 Max (48GB)"
 ```
 
-**What to watch.** Model placement at each context length on the RTX. If a model
-that was `100% GPU` at 4K goes to a CPU split at 16K or 32K, you have directly
-demonstrated that the memory ceiling is a function of workload, not just of
-model size. On the Mac, expect residency to hold and only prefill cost to rise,
-which is the honest contrast between the two memory architectures.
+**What to watch.** Model placement at each capacity on the RTX. If a model that
+was `100% GPU` at 4K goes to a CPU split at 16K or 32K, you have directly
+demonstrated that the memory ceiling is a function of configuration, not just of
+model size. On the Mac, expect residency to hold throughout, which is the honest
+contrast between the two memory architectures.
 
-**What would falsify it.** Residency unchanged across all four context lengths
-on the RTX, which would mean the KV cache for this model is small relative to
-your remaining headroom. Then say so, and note at what context you would expect
-it to matter.
+**What would falsify it.** Residency unchanged across all four capacities on the
+RTX, which would mean the KV cache for this model is small relative to your
+remaining headroom. Then say so, and note at what capacity you would expect it
+to matter.
 
 ---
 
