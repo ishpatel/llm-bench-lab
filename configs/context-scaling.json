@@ -1,0 +1,10 @@
+{
+  "name": "context-scaling",
+  "runs": 3,
+  "warmup": 1,
+  "measure_cold_start": false,
+  "options": { "temperature": 0, "num_predict": 256, "think": false },
+  "models": ["qwen3:8b-q4_K_M"],
+  "context_lengths": [4096, 8192, 16384, 32768],
+  "prompts": ["prefill_stress"]
+}

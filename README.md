@@ -55,6 +55,9 @@ selectable for side-by-side comparison.
 For the full picture (layer map, the two contracts that make it compose, request
 lifecycle, and the reasoning behind each module) see **[ARCHITECTURE.md](ARCHITECTURE.md)**.
 
+To reproduce the experiments (five hypotheses, exact commands, and what would
+falsify each) see **[TESTPLAN.md](TESTPLAN.md)**.
+
 An LLM's tokens/sec is only one number. This harness treats local inference as
 a *system-level experience* question: memory capacity and compute throughput
 are independent constraints, quantization trades quality for footprint and

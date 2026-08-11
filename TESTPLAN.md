@@ -1,0 +1,324 @@
+# Test plan
+
+A structured run order for turning this lab into evidence. Five hypotheses,
+each with the exact command, what to watch, and what result would prove the
+hypothesis wrong. Record whatever actually happens, including the boring and
+the inconvenient.
+
+The rule that makes the whole thing worth doing: **do not adjust a hypothesis
+after seeing the data.** Write down what you expect, run it, then report the
+gap. A benchmark that only ever confirms its own prediction is marketing.
+
+---
+
+## Before you start: control the machine
+
+Laptop benchmarking measures power and thermal state as much as silicon. Any of
+these left uncontrolled will produce differences larger than the effects being
+measured.
+
+**On the RTX 5070 laptop:**
+
+- Plugged into AC, not battery.
+- Windows power mode set to Best Performance, and the OEM performance profile
+  (Legion / Omen / Alienware control panel) set to its performance preset.
+- Let the machine sit idle a few minutes before the first run so it starts cool.
+  A thermally saturated laptop reports lower clocks and will make run 1 look
+  faster than run 10 for reasons that have nothing to do with the model.
+- Close other GPU consumers, including browsers with hardware acceleration.
+- Note the NVIDIA driver version and keep it fixed across the whole campaign:
+  `nvidia-smi --query-gpu=driver_version --format=csv`
+
+**On the M3 Max:**
+
+- Plugged into AC. macOS High Power Mode if available.
+- Quit other heavy apps.
+
+**Both:** same model tags, same quantization, same prompts, same temperature,
+same max tokens. The tool holds generation options constant within a run; you
+are responsible for holding the machine constant across runs.
+
+Record the environment once per machine:
+
+```bash
+python bench.py info
+```
+
+---
+
+## Phase 0: setup and smoke test
+
+Do this first on the RTX machine. It takes two minutes and catches setup
+problems before you spend an hour on a run that was never going to work.
+
+```bash
+git clone https://github.com/ishpatel/llm-bench-lab.git
+```
+
+```bash
+cd llm-bench-lab
+```
+
+```bash
+python bench.py info
+```
+
+Confirm it reports the RTX 5070, the CUDA backend, dedicated VRAM (not unified),
+and lists your pulled models. Then a single fast run:
+
+```bash
+python bench.py run configs/smoke.json --label "RTX 5070 (8GB)"
+```
+
+If that writes a results file, the harness works. Anything that fails here is a
+setup problem, not a finding.
+
+---
+
+## Phase 1: what does quantization actually buy?
+
+**Hypothesis.** Holding architecture and parameter count fixed and varying only
+precision (Q4 -> Q8 -> FP16), generation speed falls as precision rises, because
+decode is dominated by memory bandwidth and higher precision moves more bytes
+per token. Memory footprint rises roughly proportionally. Answer quality is not
+expected to change dramatically at these sizes, but is not measured
+automatically and must be judged by reading outputs.
+
+**Run it on both machines:**
+
+```bash
+python bench.py run configs/quant-sweep.json --label "RTX 5070 (8GB)"
+```
+
+9 cells, 45 generations. On the M3 Max this takes roughly 10 minutes; on the
+RTX, longer if FP16 spills.
+
+**What to watch.** Generation tok/s across the three precisions. Model placement
+on each: `qwen3:4b-fp16` is about 8.1 GB, so on an 8 GB card this row is where
+Phase 2 begins whether you intended it or not.
+
+**Reference point.** On the M3 Max this produced roughly 100 / 70 / 42 tok/s for
+Q4 / Q8 / FP16, a 2.4x spread from precision alone with no change in
+architecture. Expect the RTX to show a *different* shape, not a scaled copy,
+because FP16 will not fit.
+
+**What would falsify it.** Q8 or FP16 matching or beating Q4 on tok/s, or the
+ratio being roughly flat. That would suggest the workload is compute-bound
+rather than bandwidth-bound at this size, which would be a more interesting
+finding than the expected result.
+
+**Also record:** rate a few answers in the UI (Runs tab, open a run, star it) so
+you can say something about whether the quality cost of Q4 was visible at all.
+Speed without a quality judgment is half an answer.
+
+---
+
+## Phase 2: the VRAM wall
+
+This is the headline experiment and the reason the RTX machine matters.
+
+**Hypothesis.** On 8 GB of dedicated VRAM, models near or above that size cannot
+be held entirely in GPU memory. `gemma3:12b-it-q4_K_M` (about 8.1 GB) and
+`qwen3:4b-fp16` (about 8.1 GB) should show model placement changing from
+`100% GPU` to a CPU/GPU split, with a large drop in generation speed, while
+`qwen3:4b-q4_K_M` (about 2.6 GB) stays fully resident as the control. On the
+M3 Max, all three should stay resident because 48 GB of unified memory is not
+the binding constraint.
+
+**Run the shared matrix on the RTX machine:**
+
+```bash
+python bench.py run configs/cross-system.json --label "RTX 5070 (8GB)"
+```
+
+15 cells, 75 generations. Budget 30 to 60 minutes on the RTX; the spilling
+models are slow, which is the point.
+
+**And the same file on the Mac:**
+
+```bash
+python bench.py run configs/cross-system.json --label "M3 Max (48GB)"
+```
+
+**What to watch.**
+
+- **Model placement** is the primary measurement, not speed. `100% GPU` versus
+  a `CPU/GPU` split is the actual phenomenon; the tok/s drop is its consequence.
+- **Where the boundary falls.** It will probably not be exactly 8.0 GB. Weights
+  are only one consumer: the KV cache, activations and runtime workspace all
+  compete. A model whose file is smaller than VRAM can still fail to fit.
+- **Peak VRAM and utilization** from the `nvidia-smi` sampler.
+
+**What would falsify it.** Both large models staying at `100% GPU` with no
+throughput cliff, or the throughput dropping without any residency change (which
+would point at thermal throttling instead, and you would check temperature and
+clocks before claiming a memory effect).
+
+**The write-up sentence you are trying to earn:** *"the boundary appeared at X,
+not at the model's file size, because weights are not the only memory
+consumer."*
+
+---
+
+## Phase 3: does context length move the boundary?
+
+The subtlest result and the one that best demonstrates understanding.
+
+**Hypothesis.** Growing the context window increases KV-cache memory
+proportionally to context length. On the RTX, a model that fits comfortably at
+4K may stop fitting at 16K or 32K without changing a single weight. Prefill work
+also grows, so time to first visible token should rise with context even when
+residency does not change.
+
+```bash
+python bench.py run configs/context-scaling.json --label "RTX 5070 (8GB)"
+```
+
+4 cells, 16 generations. Fast. Run it on the Mac too:
+
+```bash
+python bench.py run configs/context-scaling.json --label "M3 Max (48GB)"
+```
+
+**What to watch.** Model placement at each context length on the RTX. If a model
+that was `100% GPU` at 4K goes to a CPU split at 16K or 32K, you have directly
+demonstrated that the memory ceiling is a function of workload, not just of
+model size. On the Mac, expect residency to hold and only prefill cost to rise,
+which is the honest contrast between the two memory architectures.
+
+**What would falsify it.** Residency unchanged across all four context lengths
+on the RTX, which would mean the KV cache for this model is small relative to
+your remaining headroom. Then say so, and note at what context you would expect
+it to matter.
+
+---
+
+## Phase 4: merge the two machines
+
+Once both machines have run `configs/cross-system.json`, bring them together.
+
+**In the web UI (recommended):** on the RTX machine open each run and press
+`Export`, copy the JSON files to the Mac, then Runs tab -> `Import run`. Open the
+**Cross-System** tab. Any model benchmarked on both machines appears with the
+two side by side, and the VRAM wall is flagged automatically with the
+throughput cost computed.
+
+**Via the CLI:** copy both results files into one `results/` directory, then:
+
+```bash
+python bench.py report results/cross-system_*.json --out results/cross.html
+```
+
+**Framing that matters.** This is a *system-level client experience*
+comparison, not a raw GPU benchmark. Different memory architectures, different
+runtimes, different thermal envelopes. The interesting question is not "which
+GPU is faster" but "at what point does each system stop being able to run the
+thing you wanted to run."
+
+---
+
+## Phase 5: was RAG worth it?
+
+**Hypothesis.** On questions whose answers live in a private document corpus,
+retrieval converts a model that cannot know the answer into one that answers
+correctly and cites its source, at the cost of extra embedding time, retrieval
+time and a much larger prompt. The accuracy gain should be large enough to
+dominate the latency cost for this class of task.
+
+```bash
+python bench.py eval life_lab
+```
+
+This runs every question twice, once with retrieval and once against the raw
+model, and scores correctness, groundedness, hallucinations and correct
+abstentions.
+
+**Reference point from the M3 Max:** RAG 13/14 with 0 hallucinations, raw model
+5/14 with 4 hallucinations. The one persistent RAG failure is a spending total
+where the source CSV splits across chunks and the model sums 5 of 7 rows, which
+is a retrieval limitation rather than an arithmetic one.
+
+**What to watch.** Not just the pass counts. The *hallucination* count is the
+sharper signal, because a keyword scorer can pass a lucky guess. Note that the
+raw model scored 5/14 partly by guessing plausible values that happened to match
+expected strings.
+
+**What would falsify it.** RAG failing to beat the raw model, or the added
+latency being large enough that a user would prefer the wrong answer sooner.
+Record embedding and retrieval milliseconds from the Copilot tab so you can
+quantify that trade rather than asserting it.
+
+---
+
+## Phase 6: safety behaviour
+
+Cheap, fast, and the part most candidates cannot show at all.
+
+```bash
+python bench.py eval guardrails
+```
+
+```bash
+python bench.py eval rag
+```
+
+Then the retrieval-injection demonstration by hand, in the Copilot tab: build a
+knowledge base that includes `evals/fixtures/shipping_notice.md`, ask an
+ordinary question about the delivery, and observe that the answer is correct,
+the payload never reaches the model, and the response reports suspicious content
+found in the documents.
+
+**The finding already on record:** applying the security notice to every prompt
+regressed 2 of 14 eval cases, so it was made conditional on the deterministic
+rail actually flagging a source. Guardrails are not free, and the useful question
+is what safety cost and whether the trade was worth it.
+
+---
+
+## Phase 7: freeze the evidence
+
+Do this once, at the end. It is what converts "I built a lab" into "I ran
+experiments."
+
+```bash
+mkdir -p sample-results
+```
+
+Copy into `sample-results/`:
+
+- the raw results JSON from each machine,
+- one merged cross-system HTML report,
+- the eval output from both machines.
+
+Then commit with a deliberately boring message:
+
+```bash
+git add sample-results && git commit -m "Add RTX 5070 and M3 Max benchmark results"
+```
+
+---
+
+## What to record as you go
+
+For each phase, in your own notes, not just in the tool:
+
+| Field | Why |
+|---|---|
+| Machine, driver version, power mode | The controls; without them the numbers are not reproducible |
+| Hypothesis, written before the run | Prevents rewriting expectations after the fact |
+| The measured result | Including the runs that did nothing interesting |
+| Whether it matched, and by how much | The gap is the finding |
+| What surprised you | This is what an interviewer actually wants |
+
+## The four sentences you are trying to be able to say
+
+1. Quantization bought me *X* on this hardware, and cost me *Y* in quality.
+2. The 8 GB boundary appeared at *Z*, which was not the model's file size,
+   because weights are not the only memory consumer.
+3. Unified memory and discrete VRAM failed in different places, so the honest
+   comparison is client experience rather than raw GPU throughput.
+4. Retrieval changed task success from *A* to *B* and cost *C* milliseconds,
+   and here is the one case where it still failed and why.
+
+If a run produces a result that contradicts the hypothesis, that is the most
+valuable outcome available. Report it first.
