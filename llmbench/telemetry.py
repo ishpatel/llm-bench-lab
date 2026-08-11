@@ -300,6 +300,26 @@ class SampleStats:
     temp_peak_c: Optional[float] = None
 
 
+def sample_gpu_once() -> Dict[str, Any]:
+    """One synchronous nvidia-smi read. Use this for a point-in-time status
+    query; GpuSampler is for wrapping a generation over time, and starting then
+    immediately stopping it races the polling thread for zero or one sample."""
+    raw = _run([
+        "nvidia-smi",
+        "--query-gpu=utilization.gpu,memory.used,power.draw,temperature.gpu",
+        "--format=csv,noheader,nounits",
+    ], timeout=5)
+    if not raw:
+        return {"available": False}
+    parts = [p.strip() for p in raw.splitlines()[0].split(",")]
+    try:
+        return {"available": True, "utilization_pct": float(parts[0]),
+                "vram_used_mb": float(parts[1]), "power_w": float(parts[2]),
+                "temp_c": float(parts[3])}
+    except (ValueError, IndexError):
+        return {"available": False}
+
+
 class GpuSampler:
     """Background poller for `nvidia-smi`. No-op on non-NVIDIA systems so the
     same code path runs everywhere."""

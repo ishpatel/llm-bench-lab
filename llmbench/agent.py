@@ -62,14 +62,12 @@ def _get_gpu_status(_args: Dict[str, Any]) -> str:
         "resident_models": {k: v.get("processor", "") for k, v in resident.items()}
                            or "none loaded",
     }
-    smp = telemetry.GpuSampler()
-    smp.start()
-    stats = smp.stop()
-    if stats.available:
-        status["utilization_pct"] = stats.util_peak
-        status["vram_used_mb"] = stats.vram_used_peak_mb
-        status["power_w"] = stats.power_peak_w
-        status["temp_c"] = stats.temp_peak_c
+    # Point-in-time read. Starting the background sampler and stopping it
+    # immediately races the polling thread, yielding zero or one sample
+    # depending on scheduling.
+    live = telemetry.sample_gpu_once()
+    if live.pop("available", False):
+        status.update(live)
     return json.dumps(status)
 
 

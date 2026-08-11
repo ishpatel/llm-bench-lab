@@ -376,7 +376,7 @@
       <dl>
         <dt>Generation speed</dt><dd>How fast the answer streams out, in tokens/sec (1 token ≈ ¾ of a word).
           30+ feels smooth; 80+ is faster than anyone reads; under 10 is a slideshow.</dd>
-        <dt>Time to first token</dt><dd>The wait between pressing Run and the first word appearing.
+        <dt>Time to first word</dt><dd>The wait before you see anything. On reasoning models the model may think privately for seconds first, which is why this is tracked separately from raw compute latency.
           Under 300 ms feels instant; over 3 seconds feels broken.</dd>
         <dt>Prompt reading speed</dt><dd>How fast the model ingests your prompt and attachments (the
           “prefill”). Only matters much when you attach long documents.</dd>
@@ -395,7 +395,7 @@
       <div class="field"><label>Sort by</label><select id="fSort">
         <option value="created">Newest first</option>
         <option value="gen_tps">Fastest generation</option>
-        <option value="ttft_ms">Quickest to respond</option>
+        <option value="ttfv_ms">Quickest to respond</option>
         <option value="rating">Highest score</option>
       </select></div>
       <button class="ghost" id="cmpBtn">Compare selected</button>
@@ -407,7 +407,7 @@
       <table class="runs"><thead><tr>
         <th title="Tick to compare"></th><th>Run</th><th>Model</th>
         <th title="Tokens per second while answering">Speed</th>
-        <th title="Milliseconds until the answer started">TTFT</th>
+        <th title="Milliseconds until the first visible word">First word</th>
         <th title="Tokens read / tokens written">In / Out</th>
         <th title="Your quality rating of the answer">Score</th>
         <th>When</th><th></th>
@@ -595,10 +595,15 @@ const MET = {
       : v>=30?['Smooth, a comfortable reading pace','good']
       : v>=10?['Workable, but you’ll be waiting on it','ok']
       : ['Sluggish; the model may not fit on the GPU','bad']},
-  ttft_ms:{label:'Time to first token',unit:'ms',
-    explain:'The wait between pressing Run and the first word appearing.',
+  ttfv_ms:{label:'Time to first word',unit:'ms',
+    explain:'How long you stare at nothing before the first visible word. Reasoning models think privately first, so this can be much longer than the moment the model started working.',
     verdict:v=> v==null?null: v<300?['Feels instant','good']: v<1000?['Snappy','good']
       : v<3000?['Noticeable pause','ok']:['Slow to start','bad']},
+  ttft_ms:{label:'First token (compute)',unit:'ms',
+    explain:'When the model produced its first token of any kind, including hidden reasoning. Identical to the first-word figure on non-thinking models.',
+    verdict:(v,m)=>{ if(v==null)return null;
+      if(m && m.ttfv_ms!=null && m.ttfv_ms-v>400) return ['Model thought privately first','neutral'];
+      return null;}},
   prompt_tps:{label:'Prompt reading speed',unit:'tok/s',
     explain:'How fast the model ingests your prompt and attachments (prefill). Matters most with long documents.',
     verdict:(v,m)=>{ if(v==null)return null;
@@ -618,7 +623,7 @@ const MET = {
     verdict:v=> !v?null: /100%\s*GPU/i.test(v)?['Fully on the GPU, the fastest path','good']
       : /CPU/i.test(v)?['Spilled to CPU; this is the VRAM wall','bad']:[String(v),'neutral']},
 };
-const MET_ORDER=['gen_tps','ttft_ms','prompt_tps','prompt_tokens','output_tokens','cold_load_ms','residency'];
+const MET_ORDER=['gen_tps','ttfv_ms','ttft_ms','prompt_tps','prompt_tokens','output_tokens','cold_load_ms','residency'];
 
 function tile(key, raw, all){
   const mi=MET[key]||{label:key,unit:''};
@@ -915,7 +920,7 @@ function renderRuns(){
       if(av==null&&bv==null)return 0;if(av==null)return 1;if(bv==null)return -1;return bv-av;}
     const av=(a.metrics||{})[sort],bv=(b.metrics||{})[sort];
     if(av==null)return 1;if(bv==null)return -1;
-    return sort==='ttft_ms'?av-bv:bv-av;
+    return (sort==='ttft_ms'||sort==='ttfv_ms')?av-bv:bv-av;
   });
   const body=$('#runsBody');body.innerHTML='';
   $('#runsEmpty').style.display=rows.length?'none':'';
@@ -927,7 +932,7 @@ function renderRuns(){
         <span class="hint">${esc((r.prompt&&r.prompt.text||'').slice(0,60))}</span></td>
       <td class="mono">${esc(r.model||'')}</td>
       <td><b class="speedval ${speedClass(m.gen_tps)}">${fmt(m.gen_tps)}</b> <span class="hint">tok/s</span></td>
-      <td>${fmt(m.ttft_ms)} <span class="hint">ms</span></td>
+      <td>${fmt(m.ttfv_ms!=null?m.ttfv_ms:m.ttft_ms)} <span class="hint">ms</span></td>
       <td class="hint">${fmtInt(m.prompt_tokens)} / ${fmtInt(m.output_tokens)}</td>
       <td>${scorePill(r)}</td>
       <td class="hint">${(r.created||'').replace('T',' ').slice(5,16)}</td>

@@ -115,18 +115,28 @@ two front doors, no possibility of drift between them.
 `ollama.py` streams `/api/generate` as newline-delimited JSON. Decisions worth
 knowing:
 
-- **TTFT is wall-clock time to the first streamed token**, not derived from
-  Ollama's internal timings. TTFT is a user-experience metric, so it is measured
-  the way the user experiences it.
-- It watches both the `response` and `thinking` fields for that first token.
-  Reasoning models stream hidden thinking separately; without this, TTFT is null
-  on every thinking model.
+- **Two first-token clocks, not one.** `ttft_ms` starts on the first token of
+  any kind including hidden reasoning (compute latency); `ttfv_ms` starts on the
+  first *visible* word (perceived latency). They are identical on non-thinking
+  models, verified at 644.8 ms on both clocks. On a reasoning model they diverge
+  badly: a measured run started producing tokens at 231 ms but the user saw
+  nothing for 2,122 ms, so a single metric understated the felt wait by 9x. A
+  model can also spend its whole budget thinking and emit no visible word at
+  all, in which case `ttfv_ms` is null and reporting only compute latency would
+  be actively misleading.
+- Both are wall-clock, not derived from Ollama's internal timings, because these
+  are user-experience metrics and should be measured the way a user experiences
+  them.
 - `gen_tps = eval_count / eval_duration` isolates decode speed from prefill,
   because those are different bottlenecks and a system can be strong at one and
   weak at the other.
 
 `backends.py` does the same job over the OpenAI-compatible
 `/v1/chat/completions` SSE protocol, taking token counts from the `usage` chunk.
+When a server sends no usage block, it records the stream-chunk count, sets
+`approximate_tokens`, and **leaves `gen_tps` unset**: a stream delta is not
+necessarily one token, so deriving a rate from delta counts would produce a
+number that looks directly comparable to a measured tokens/sec and is not.
 It exists because Ollama has no TensorRT mode, so the only honest way to
 benchmark TensorRT-LLM is to talk to a real TensorRT-LLM server. NIM and vLLM
 work for free as a result.
@@ -213,6 +223,44 @@ answer with `[n]` citations or an honest abstention.
 
 Embeddings are stored unit-normalized at build time, so a query is a dot product
 with no per-comparison square root, with a cosine fallback for older indexes.
+
+### Finding: the retrieval rail, and what it cost
+
+Injection that arrives inside an indexed document bypasses the input rail
+entirely, because the user's question is benign and the payload rides in on a
+retrieved chunk. This was measured rather than assumed, and the result was more
+interesting than expected.
+
+**Baseline, no rail.** A realistic attack document (a delivery notice with a
+buried instruction to run a shell command) was indexed and queried with an
+ordinary question. All three models answered the legitimate question correctly
+and none obeyed the injection, because the retrieval path exposes no tools and
+there was nothing to hijack. But none of them told the user their own document
+store contained the instruction either. Silent tolerance is its own weakness,
+and the exposure becomes live the moment retrieval feeds a tool-capable context.
+
+**The rail.** `retrieval_rail()` redacts instruction-shaped lines before they
+reach the prompt and reports what it found, line by line, so a flagged document
+still contributes its legitimate content.
+
+**First attempt failed on false positives.** The naive detector could not
+distinguish describing an attack from performing one. A permissions manifest
+listing blocked tool names, and a policy line reading "instructions must never
+override system policy", were both redacted. Adding negation and
+imperative-context handling (`_is_descriptive`) took false positives on the
+sample corpus to zero while still catching both real attacks.
+
+**The security notice cost accuracy.** Adding a defensive paragraph to every
+grounded prompt regressed two of fourteen eval cases on a 4B model: the extra
+instruction competes for attention. Isolated by A/B testing the prompt with the
+rail held constant. The fix is to apply the notice *conditionally*, only when
+the deterministic rail actually flagged a source, since the payload is already
+redacted by then and the paragraph exists to make the model tell the user.
+Clean documents pay nothing; accuracy returned to 13/14 with the defense intact.
+
+The general lesson, which is the interesting part: **guardrails are not free.**
+They cost latency, tokens, false positives and accuracy, so the useful question
+is not "is it safe" but "what did safety cost, and is the trade worth it".
 
 ### `agent.py` and `guardrails.py`
 

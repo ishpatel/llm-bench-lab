@@ -27,8 +27,13 @@ class GenerationResult:
     ok: bool = True
     error: Optional[str] = None
 
-    # Wall-clock (what the user actually experiences)
-    ttft_ms: Optional[float] = None          # time until first output token
+    # Wall-clock (what the user actually experiences).
+    # Reasoning models stream hidden thinking before any visible words, so the
+    # two clocks diverge: ttft_ms is when the model started producing anything
+    # (compute latency), ttfv_ms is when the user first saw a word (perceived
+    # latency). They are identical on non-thinking models.
+    ttft_ms: Optional[float] = None           # first token of any kind
+    ttfv_ms: Optional[float] = None           # first *visible* token
     wall_total_ms: Optional[float] = None     # full request round-trip
 
     # Ollama-reported internals (nanoseconds -> ms)
@@ -47,6 +52,11 @@ class GenerationResult:
 
     response_text: str = ""
     thinking_chars: int = 0                    # size of separate reasoning stream
+    # True when token counts came from counting stream deltas rather than a
+    # server-reported usage block. Derived rates are suppressed in that case so
+    # an estimate can never be mistaken for a measurement.
+    approximate_tokens: bool = False
+    stream_chunks: Optional[int] = None
 
     def as_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -202,7 +212,8 @@ class OllamaClient:
         chunks: List[str] = []
         think_chars = 0
         t_start = time.perf_counter()
-        first_token_at: Optional[float] = None
+        first_token_at: Optional[float] = None      # any token (compute)
+        first_visible_at: Optional[float] = None    # visible token (perceived)
         final: Dict[str, Any] = {}
         try:
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
@@ -213,10 +224,12 @@ class OllamaClient:
                     msg = json.loads(line)
                     piece = msg.get("response", "")
                     thinking = msg.get("thinking", "")
-                    # First generated token may be reasoning (thinking model) or
-                    # visible output — either counts for time-to-first-token.
+                    # Two clocks: any token starts compute latency, only a
+                    # visible token starts perceived latency.
                     if (piece or thinking) and first_token_at is None:
                         first_token_at = time.perf_counter()
+                    if piece and first_visible_at is None:
+                        first_visible_at = time.perf_counter()
                     if piece:
                         chunks.append(piece)
                     if thinking:
@@ -238,6 +251,8 @@ class OllamaClient:
         result.wall_total_ms = (t_end - t_start) * 1000.0
         if first_token_at is not None:
             result.ttft_ms = (first_token_at - t_start) * 1000.0
+        if first_visible_at is not None:
+            result.ttfv_ms = (first_visible_at - t_start) * 1000.0
 
         # Ollama internal timings (nanoseconds)
         def ns_to_ms(key: str) -> Optional[float]:

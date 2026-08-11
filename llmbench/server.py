@@ -25,6 +25,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import parse_qs, urlparse
 
 from . import evals as evals_mod
+from . import guardrails
 from . import rag as rag_mod
 from . import report as report_mod
 from . import telemetry
@@ -57,7 +58,7 @@ def summarize(cell: Dict[str, Any], meta: Dict[str, Any]) -> Dict[str, Any]:
     runs = cell.get("runs", [])
     first = runs[0] if runs else {}
     metrics = {k: _median(agg, k) for k in (
-        "gen_tps", "prompt_tps", "ttft_ms", "load_ms", "wall_total_ms")}
+        "gen_tps", "prompt_tps", "ttft_ms", "ttfv_ms", "load_ms", "wall_total_ms")}
     metrics["prompt_tokens"] = first.get("prompt_tokens")
     metrics["output_tokens"] = first.get("output_tokens")
     metrics["residency"] = cell.get("residency", "")
@@ -254,12 +255,18 @@ class BenchServer:
         t = time.perf_counter()
         hits = rag_mod.retrieve(kb, qvec, k=k)
         retrieve_ms = (time.perf_counter() - t) * 1000.0
-        prompt = rag_mod.build_grounded_prompt(question, hits)
+        # Retrieval rail: retrieved text is untrusted data. Redact
+        # instruction-shaped lines before they reach the prompt, and report
+        # anything found so the user learns their documents contain it.
+        scan = guardrails.retrieval_rail(hits)
+        prompt = rag_mod.build_grounded_prompt(question, scan.chunks,
+                                               untrusted_flagged=not scan.clean)
         gen = self.client.generate(model, prompt, options=options)
         return {
             "question": question,
             "answer": gen.response_text,
             "sources": hits,
+            "security": {"clean": scan.clean, "flagged": scan.flagged},
             "model": model,
             "embed_model": kb["embed_model"],
             "timing": {

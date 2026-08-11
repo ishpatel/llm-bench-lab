@@ -186,9 +186,13 @@ def build_report(results: List[Dict[str, Any]], title: str = "Local AI Benchmark
         ("gen_tps", "tokens/sec", True, "Generation speed",
          "How fast the answer streams out. One token is about ¾ of a word, so "
          "80 tok/s is roughly 60 words a second, faster than anyone reads."),
-        ("ttft_ms", "ms", False, "Time to first token",
-         "The wait before the first word appears (warm runs; cold start is "
-         "measured separately). Under 300 ms feels instant."),
+        ("ttfv_ms", "ms", False, "Time to first visible word",
+         "How long the reader stares at nothing. Reasoning models think "
+         "privately first, so this can be far longer than the moment the model "
+         "started working. Under 300 ms feels instant."),
+        ("ttft_ms", "ms", False, "Time to first token (compute)",
+         "When the model produced its first token of any kind, including hidden "
+         "reasoning. Identical to the visible figure on non-thinking models."),
         ("prompt_tps", "tokens/sec", True, "Prompt reading speed",
          "How fast the model ingests the prompt and any attachments. This only "
          "matters much when you feed it long documents."),
@@ -255,6 +259,7 @@ def _detail_table(systems, categories, table, color_of) -> str:
             agg = cell.get("aggregate", {})
             gen = _median(agg, "gen_tps")
             ttft = _median(agg, "ttft_ms")
+            ttfv = _median(agg, "ttfv_ms") or ttft
             sp = _spread(agg, "gen_tps")
             res = cell.get("residency", "")
             gv, gcls = speed_verdict(gen)
@@ -263,7 +268,7 @@ def _detail_table(systems, categories, table, color_of) -> str:
             verdict = f'<div class="verdict {gcls}">{html.escape(gv)}</div>' if gv else ""
             cells.append(
                 f'<td><b class="sv-{gcls}">{_fmt(gen) if gen else "not run"}</b> tok/s{spread_s}<br>'
-                f'<span class="muted">first token {_fmt(ttft) if ttft else "—"} ms · '
+                f'<span class="muted">first word {_fmt(ttfv) if ttfv else "—"} ms · '
                 f'{html.escape(res or "unknown")}</span>{verdict}</td>'
             )
         body.append(f'<tr><td class="rowlabel">{html.escape(c)}</td>{"".join(cells)}</tr>')
@@ -488,8 +493,11 @@ _PAGE = """<!DOCTYPE html>
     <dl>
       <dt>Generation speed</dt><dd>How fast the answer streams out, in tokens per second
         (a token is about ¾ of a word). Over 30 feels smooth; over 80 is faster than reading; under 10 drags.</dd>
-      <dt>Time to first token</dt><dd>The wait before the first word appears. Under 300 ms feels instant;
-        over 3 seconds feels broken.</dd>
+      <dt>Time to first visible word</dt><dd>The wait before the reader sees anything. Under 300 ms feels
+        instant; over 3 seconds feels broken. On reasoning models this is the honest experience number,
+        because the model may think privately for seconds before writing a word.</dd>
+      <dt>Time to first token</dt><dd>When the model produced its first token of any kind, including hidden
+        reasoning. Measures compute latency rather than perceived latency.</dd>
       <dt>Prompt reading speed</dt><dd>How quickly the model takes in your prompt and attachments.
         Only matters much for long documents.</dd>
       <dt>Model placement</dt><dd>Where the model ran. 100% GPU means it fit in GPU memory (fastest).

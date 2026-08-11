@@ -85,6 +85,7 @@ class OpenAICompatClient:
         usage: Dict[str, Any] = {}
         t_start = time.perf_counter()
         t_first: Optional[float] = None
+        t_first_visible: Optional[float] = None
         t_last_tok: Optional[float] = None
         try:
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
@@ -114,6 +115,8 @@ class OpenAICompatClient:
                         now = time.perf_counter()
                         if t_first is None:
                             t_first = now
+                        if piece and t_first_visible is None:
+                            t_first_visible = now
                         t_last_tok = now
                         n_deltas += 1
                     if piece:
@@ -136,11 +139,27 @@ class OpenAICompatClient:
         result.total_ms = result.wall_total_ms
         if t_first is not None:
             result.ttft_ms = (t_first - t_start) * 1000.0
+        if t_first_visible is not None:
+            result.ttfv_ms = (t_first_visible - t_start) * 1000.0
+
         result.prompt_tokens = usage.get("prompt_tokens")
-        result.output_tokens = usage.get("completion_tokens") or (n_deltas or None)
+        result.stream_chunks = n_deltas or None
+        completion = usage.get("completion_tokens")
         if t_first is not None and t_last_tok is not None:
-            gen_s = t_last_tok - t_first
-            result.eval_ms = gen_s * 1000.0
-            if result.output_tokens and gen_s > 0.001:
-                result.gen_tps = result.output_tokens / gen_s
+            result.eval_ms = (t_last_tok - t_first) * 1000.0
+
+        if completion:
+            # Server reported real token counts: safe to derive a rate.
+            result.output_tokens = completion
+            gen_s = (t_last_tok - t_first) if (t_first and t_last_tok) else 0.0
+            if gen_s > 0.001:
+                result.gen_tps = completion / gen_s
+        else:
+            # No usage block. A stream delta is not necessarily one token, so
+            # deriving tokens/sec from delta counts would produce a number that
+            # looks comparable to a measured rate but is not. Report the chunk
+            # count, mark the run approximate, and leave gen_tps unset.
+            result.approximate_tokens = True
+            result.output_tokens = None
+            result.gen_tps = None
         return result

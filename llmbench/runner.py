@@ -24,6 +24,7 @@ AGG_METRICS = {
     "gen_tps": True,
     "prompt_tps": True,
     "ttft_ms": False,
+    "ttfv_ms": False,
     "wall_total_ms": False,
     "load_ms": False,
     "eval_ms": False,

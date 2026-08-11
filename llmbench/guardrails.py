@@ -47,6 +47,95 @@ def input_rail(text: str) -> RailResult:
 
 
 # --------------------------------------------------------------------------
+# Retrieval rail — retrieved document text is DATA, never instructions
+# --------------------------------------------------------------------------
+# Injection that arrives inside an indexed document bypasses the input rail
+# entirely: the user's question is benign, the payload rides in on a retrieved
+# chunk. Measured behaviour without this rail: models correctly declined to act
+# on a planted instruction (the retrieval path exposes no tools, so there is
+# nothing to hijack) but they also never told the user their own document store
+# contained one. Silent tolerance is its own weakness, and the exposure becomes
+# live the moment retrieval feeds a tool-capable context.
+#
+# So the rail does two things: redact instruction-shaped lines before they reach
+# the prompt, and report what it found so the answer can carry a notice.
+RETRIEVAL_INJECTION_PATTERNS = [
+    r"(?:assistant|system)\s+instructions?\s*:",
+    r"ignore\s+(all\s+)?(your\s+|the\s+)?(previous\s+|prior\s+)?(policies|instructions|rules)",
+    r"system\s+override\s*:",
+    r"\boverride\s+(all\s+)?(the\s+)?(system|application\s+)?polic(y|ies)",
+    r"before\s+(answering|responding)[^.\n]{0,40}\bcall\b",
+    # Tool names only count when something is telling the model to invoke them.
+    # A permissions file that *lists* the same names is documentation, not an
+    # attack, so a bare mention must not trip the rail.
+    r"\b(call|invoke|execute|run|use)\s+[`\"']?(run_arbitrary_shell_command"
+    r"|delete_file|change_bios_settings|change_gpu_power_limit)",
+    r"\brm\s+-rf\b",
+    r"do\s+not\s+(mention|tell|inform)\s+(the\s+)?user",
+    r"never\s+tell\s+(the\s+)?user",
+    r"claim\s+the\s+operation\s+succeeded",
+]
+_RETR = [re.compile(p, re.IGNORECASE) for p in RETRIEVAL_INJECTION_PATTERNS]
+
+# A line that prohibits or describes an action is not the action. Security
+# policies, permission manifests and documentation all talk *about* attacks;
+# redacting them destroys exactly the content a user needs to ask about their
+# own security posture. Measured on the sample corpus, omitting this check
+# produced false positives on two legitimate documents.
+_DESCRIPTIVE = re.compile(
+    r"\b(must\s+not|must\s+never|may\s+not|should\s+not|shall\s+not|cannot|"
+    r"can\s?not|never\s+override|do\s+not\s+(allow|permit)|is\s+blocked|"
+    r"are\s+blocked|blocked\b|forbidden|denied|not\s+permitted|not\s+allowed|"
+    r"disallowed|prohibited|\"blocked\"|'blocked')",
+    re.IGNORECASE)
+
+
+def _is_descriptive(line: str) -> bool:
+    """True when the line prohibits or documents the behaviour rather than
+    commanding it."""
+    return bool(_DESCRIPTIVE.search(line))
+
+REDACTION = "[redacted by retrieval guardrail: instruction-shaped text]"
+
+
+@dataclass
+class RetrievalScan:
+    chunks: List[Dict[str, Any]]          # sanitized chunks, safe to prompt with
+    flagged: List[Dict[str, Any]]         # {doc, patterns, lines} per hit
+    clean: bool = True
+
+
+def retrieval_rail(retrieved: List[Dict[str, Any]]) -> RetrievalScan:
+    """Scan retrieved chunks for instruction-shaped content, redact those lines,
+    and report what was found. Operates line by line so a flagged document still
+    contributes its legitimate content instead of being dropped wholesale."""
+    safe: List[Dict[str, Any]] = []
+    flagged: List[Dict[str, Any]] = []
+    for chunk in retrieved or []:
+        text = chunk.get("text", "")
+        hits: List[str] = []
+        out_lines: List[str] = []
+        for line in text.splitlines():
+            matched = ([] if _is_descriptive(line)
+                       else [rx.pattern for rx in _RETR if rx.search(line)])
+            if matched:
+                hits.extend(matched)
+                out_lines.append(REDACTION)
+            else:
+                out_lines.append(line)
+        if hits:
+            flagged.append({
+                "doc": chunk.get("doc", "?"),
+                "patterns": sorted(set(hits)),
+                "redacted_lines": sum(1 for l in out_lines if l == REDACTION),
+            })
+            safe.append({**chunk, "text": "\n".join(out_lines), "sanitized": True})
+        else:
+            safe.append(chunk)
+    return RetrievalScan(chunks=safe, flagged=flagged, clean=not flagged)
+
+
+# --------------------------------------------------------------------------
 # Tool rail — only explicitly registered tools may run (allowlist)
 # --------------------------------------------------------------------------
 def tool_rail(name: str, registry: Dict[str, Any]) -> RailResult:
