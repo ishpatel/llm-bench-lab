@@ -1,0 +1,3 @@
+
+RAG  12/14 passed ╖ 0 hallucinations ╖ 11 grounded
+RAW  3/14 passed ╖ 5 hallucinations ╖ 0 grounded

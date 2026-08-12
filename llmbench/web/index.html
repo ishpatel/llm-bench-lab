@@ -1117,10 +1117,13 @@ function crossCard(model,bySys){
     note=`<div class="wallnote">⚠ <b>VRAM wall.</b> <b>${esc(model)}</b> fits fully in GPU memory on
       <b>${esc(a.s)}</b> (${fmt(a.m.gen_tps)} tok/s) but spilled to CPU on <b>${esc(b.s)}</b>
       (${esc(b.m.residency||'partial')}, ${fmt(b.m.gen_tps)} tok/s)${drop!=null?`, <b>${drop}% slower</b>`:''}.
-      Same model, same task: the difference is purely whether it fit in the GPU's memory.</div>`;
+      Residency is the clearest explanatory variable here, but these are different platforms
+      (accelerator, memory architecture, runtime, OS and power behaviour all differ), so read this
+      as a system-level client comparison rather than attributing the whole delta to residency.</div>`;
   }else if(full.length===rows.length){
     note=`<div class="goodnote">✓ Fits entirely in GPU memory on all ${rows.length} machines, so the
-      comparison is purely about compute speed.</div>`;
+      remaining differences reflect the complete platform: accelerator, memory architecture,
+      runtime, OS and power behaviour.</div>`;
   }
   return `<div class="crosscard"><h3>${esc(model)}</h3>
     <span class="hint">benchmarked on ${sysNames.length} machines</span>${tbl}${note}

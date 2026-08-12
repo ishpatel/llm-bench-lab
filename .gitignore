@@ -15,3 +15,6 @@ kb/
 *.swp
 .idea/
 .vscode/
+
+# Frozen evidence from the completed campaign (tracked on purpose)
+!sample-results/

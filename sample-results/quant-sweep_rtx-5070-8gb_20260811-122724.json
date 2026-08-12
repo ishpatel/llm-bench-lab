@@ -1,0 +1,1837 @@
+{
+  "meta": {
+    "config_name": "quant-sweep",
+    "system": {
+      "os": "Windows",
+      "os_version": "11",
+      "machine": "AMD64",
+      "python": "3.14.7",
+      "accelerator": "nvidia-cuda",
+      "gpu": "NVIDIA GeForce RTX 5070 Laptop GPU",
+      "vram_mb": "8151",
+      "driver": "610.88",
+      "label": "RTX 5070 (8GB)"
+    },
+    "options": {
+      "temperature": 0,
+      "num_predict": 256,
+      "think": false
+    },
+    "runs": 3,
+    "warmup": 1,
+    "measure_cold_start": true,
+    "engine": "Ollama",
+    "ollama_version": "ollama version is 0.32.9"
+  },
+  "cells": [
+    {
+      "label": "qwen3:4b-q4_K_M \u00b7 short_qa",
+      "model": "qwen3:4b-q4_K_M",
+      "context_length": null,
+      "prompt_key": "short_qa",
+      "prompt_note": "Short prompt, short answer \u2014 isolates decode speed with minimal prefill.",
+      "prompt_text": "In one sentence, what is a KV cache in transformer LLM inference?",
+      "attachments": {
+        "files": [],
+        "images": [],
+        "assembled_chars": 65,
+        "assembled_approx_tokens": 16
+      },
+      "residency": "100% GPU",
+      "cold_start": {
+        "model": "qwen3:4b-q4_K_M",
+        "ok": true,
+        "error": null,
+        "ttft_ms": 3846.220500000527,
+        "ttfv_ms": 3846.220700000231,
+        "wall_total_ms": 4165.273100000377,
+        "load_ms": 3708.2486,
+        "total_ms": 4138.7457,
+        "prompt_eval_ms": 110.337,
+        "eval_ms": 318.114,
+        "prompt_tokens": 31,
+        "output_tokens": 33,
+        "gen_tps": 103.73639638620116,
+        "prompt_tps": 280.9574304177202,
+        "response_text": "A KV cache in transformer LLM inference is a mechanism that stores the key and value tensors from previous tokens to efficiently compute attention scores for subsequent tokens during decoding.",
+        "thinking_chars": 0,
+        "approximate_tokens": false,
+        "stream_chunks": null,
+        "gpu": {
+          "available": true,
+          "samples": 14,
+          "util_peak": 8.0,
+          "util_avg": 4.0,
+          "vram_used_peak_mb": 6158.0,
+          "power_peak_w": 15.13,
+          "power_avg_w": 10.607857142857142,
+          "temp_peak_c": 44.0
+        }
+      },
+      "runs": [
+        {
+          "model": "qwen3:4b-q4_K_M",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 128.06889999956184,
+          "ttfv_ms": 128.06909999926575,
+          "wall_total_ms": 413.0048999995779,
+          "load_ms": 94.4419,
+          "total_ms": 390.0296,
+          "prompt_eval_ms": 9.126,
+          "eval_ms": 284.101,
+          "prompt_tokens": 31,
+          "output_tokens": 33,
+          "gen_tps": 116.15587414335043,
+          "prompt_tps": 3396.8880122726273,
+          "response_text": "A KV cache in transformer LLM inference is a mechanism that stores the key and value tensors from previous tokens to efficiently compute attention scores for subsequent tokens during decoding.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 2,
+            "util_peak": 96.0,
+            "util_avg": 96.0,
+            "vram_used_peak_mb": 3292.0,
+            "power_peak_w": 118.66,
+            "power_avg_w": 118.66,
+            "temp_peak_c": 57.0
+          }
+        },
+        {
+          "model": "qwen3:4b-q4_K_M",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 107.51389999950334,
+          "ttfv_ms": 107.51410000011674,
+          "wall_total_ms": 447.5765999995929,
+          "load_ms": 91.1009,
+          "total_ms": 446.1249,
+          "prompt_eval_ms": 10.934,
+          "eval_ms": 339.255,
+          "prompt_tokens": 31,
+          "output_tokens": 33,
+          "gen_tps": 97.2719635672282,
+          "prompt_tps": 2835.1929760380467,
+          "response_text": "A KV cache in transformer LLM inference is a mechanism that stores the key and value tensors from previous tokens to efficiently compute attention scores for subsequent tokens during decoding.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 2,
+            "util_peak": 97.0,
+            "util_avg": 97.0,
+            "vram_used_peak_mb": 3292.0,
+            "power_peak_w": 120.6,
+            "power_avg_w": 120.6,
+            "temp_peak_c": 53.0
+          }
+        },
+        {
+          "model": "qwen3:4b-q4_K_M",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 120.73619999955554,
+          "ttfv_ms": 120.73639999925945,
+          "wall_total_ms": 461.24499999950785,
+          "load_ms": 90.8597,
+          "total_ms": 446.4055,
+          "prompt_eval_ms": 11.299,
+          "eval_ms": 339.793,
+          "prompt_tokens": 31,
+          "output_tokens": 33,
+          "gen_tps": 97.11795122324473,
+          "prompt_tps": 2743.605628816709,
+          "response_text": "A KV cache in transformer LLM inference is a mechanism that stores the key and value tensors from previous tokens to efficiently compute attention scores for subsequent tokens during decoding.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 2,
+            "util_peak": 97.0,
+            "util_avg": 97.0,
+            "vram_used_peak_mb": 3292.0,
+            "power_peak_w": 120.6,
+            "power_avg_w": 88.57499999999999,
+            "temp_peak_c": 53.0
+          }
+        }
+      ],
+      "aggregate": {
+        "n_ok": 3,
+        "n_total": 3,
+        "gen_tps": {
+          "median": 97.2719635672282,
+          "min": 97.11795122324473,
+          "max": 116.15587414335043,
+          "stdev": 8.938483015472208
+        },
+        "prompt_tps": {
+          "median": 2835.1929760380467,
+          "min": 2743.605628816709,
+          "max": 3396.8880122726273,
+          "stdev": 288.803552693494
+        },
+        "ttft_ms": {
+          "median": 120.73619999955554,
+          "min": 107.51389999950334,
+          "max": 128.06889999956184,
+          "stdev": 8.505591177989777
+        },
+        "ttfv_ms": {
+          "median": 120.73639999925945,
+          "min": 107.51410000011674,
+          "max": 128.06909999926575,
+          "stdev": 8.50559117758847
+        },
+        "wall_total_ms": {
+          "median": 447.5765999995929,
+          "min": 413.0048999995779,
+          "max": 461.24499999950785,
+          "stdev": 20.30088899928592
+        },
+        "load_ms": {
+          "median": 91.1009,
+          "min": 90.8597,
+          "max": 94.4419,
+          "stdev": 1.6347821900451738
+        },
+        "eval_ms": {
+          "median": 339.255,
+          "min": 284.101,
+          "max": 339.793,
+          "stdev": 26.127575947433183
+        },
+        "prompt_eval_ms": {
+          "median": 10.934,
+          "min": 9.126,
+          "max": 11.299,
+          "stdev": 0.9500887677826039
+        },
+        "output_tokens": {
+          "median": 33,
+          "min": 33,
+          "max": 33,
+          "stdev": 0.0
+        },
+        "prompt_tokens": {
+          "median": 31,
+          "min": 31,
+          "max": 31,
+          "stdev": 0.0
+        }
+      }
+    },
+    {
+      "label": "qwen3:4b-q4_K_M \u00b7 reasoning",
+      "model": "qwen3:4b-q4_K_M",
+      "context_length": null,
+      "prompt_key": "reasoning",
+      "prompt_note": "Medium prompt, structured reasoning \u2014 representative interactive task.",
+      "prompt_text": "Explain, step by step and concisely, how quantizing an LLM from FP16 to INT4 affects (1) memory footprint, (2) inference throughput, and (3) output quality. Keep it under 200 words.",
+      "attachments": {
+        "files": [],
+        "images": [],
+        "assembled_chars": 181,
+        "assembled_approx_tokens": 45
+      },
+      "residency": "100% GPU",
+      "cold_start": {
+        "model": "qwen3:4b-q4_K_M",
+        "ok": true,
+        "error": null,
+        "ttft_ms": 2165.7955999999103,
+        "ttfv_ms": 2165.7958000005237,
+        "wall_total_ms": 4152.244200000496,
+        "load_ms": 2022.3325,
+        "total_ms": 4125.526,
+        "prompt_eval_ms": 115.786,
+        "eval_ms": 1985.485,
+        "prompt_tokens": 69,
+        "output_tokens": 184,
+        "gen_tps": 92.67257118537788,
+        "prompt_tps": 595.9269687181525,
+        "response_text": "Quantizing an LLM from FP16 to INT4 affects three key aspects:\n\n1. **Memory Footprint**: INT4 reduces the precision of weights and activations, significantly lowering the memory usage. Each weight is stored using 4 bits instead of 16, leading to a 16x reduction in memory consumption, which allows for larger models or more models to run simultaneously.\n\n2. **Inference Throughput**: INT4 typically improves inference speed because lower precision allows for faster computations. The reduced precision can be processed more efficiently by hardware, leading to higher throughput, especially on GPUs and TPUs optimized for low-precision operations.\n\n3. **Output Quality**: INT4 can slightly degrade output quality due to the loss of precision, which may introduce errors in calculations. However, this degradation is often minimal, and with proper quantization techniques, the impact on task performance is often acceptable for many applications.",
+        "thinking_chars": 0,
+        "approximate_tokens": false,
+        "stream_chunks": null,
+        "gpu": {
+          "available": true,
+          "samples": 14,
+          "util_peak": 97.0,
+          "util_avg": 42.857142857142854,
+          "vram_used_peak_mb": 3292.0,
+          "power_peak_w": 56.51,
+          "power_avg_w": 29.802857142857142,
+          "temp_peak_c": 50.0
+        }
+      },
+      "runs": [
+        {
+          "model": "qwen3:4b-q4_K_M",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 136.96110000000772,
+          "ttfv_ms": 136.96130000062112,
+          "wall_total_ms": 2500.543000000107,
+          "load_ms": 107.1723,
+          "total_ms": 2498.8286,
+          "prompt_eval_ms": 13.819,
+          "eval_ms": 2362.306,
+          "prompt_tokens": 69,
+          "output_tokens": 202,
+          "gen_tps": 85.50966724886615,
+          "prompt_tps": 4993.125407048267,
+          "response_text": "Quantizing an LLM from FP16 to INT4 affects three key aspects:\n\n1. **Memory Footprint**: INT4 reduces the precision of weights and activations, significantly lowering the memory usage. For example, a model using FP16 (2 bytes per weight) would use 2 bytes per weight, while INT4 uses 4 bits, reducing memory by ~75%, enabling larger batch sizes or more models to run simultaneously.\n\n2. **Inference Throughput**: INT4 typically offers higher inference speed due to lower computational complexity. The reduced precision allows for more efficient operations, leading to faster inference times, especially on hardware optimized for low-precision calculations.\n\n3. **Output Quality**: INT4 can slightly degrade output quality due to the loss of precision. This may lead to minor errors in predictions, particularly in complex or long-context tasks. However, with proper quantization techniques (e.g., post-training quantization), the impact can be minimized, maintaining acceptable performance for most applications.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 9,
+            "util_peak": 97.0,
+            "util_avg": 88.0,
+            "vram_used_peak_mb": 3292.0,
+            "power_peak_w": 56.92,
+            "power_avg_w": 48.68222222222222,
+            "temp_peak_c": 51.0
+          }
+        },
+        {
+          "model": "qwen3:4b-q4_K_M",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 126.52729999990697,
+          "ttfv_ms": 126.52749999961088,
+          "wall_total_ms": 2579.894100000274,
+          "load_ms": 93.6129,
+          "total_ms": 2562.7314,
+          "prompt_eval_ms": 15.623,
+          "eval_ms": 2451.335,
+          "prompt_tokens": 69,
+          "output_tokens": 202,
+          "gen_tps": 82.40407777802709,
+          "prompt_tps": 4416.565320361006,
+          "response_text": "Quantizing an LLM from FP16 to INT4 affects three key aspects:\n\n1. **Memory Footprint**: INT4 reduces the precision of weights and activations, significantly lowering the memory usage. For example, a model using FP16 (2 bytes per weight) would use 2 bytes per weight, while INT4 uses 4 bits, reducing memory by ~75%, enabling larger batch sizes or more models to run simultaneously.\n\n2. **Inference Throughput**: INT4 typically offers higher inference speed due to lower computational complexity. The reduced precision allows for more efficient operations, leading to faster inference times, especially on hardware optimized for low-precision calculations.\n\n3. **Output Quality**: INT4 can slightly degrade output quality due to the loss of precision. This may lead to minor errors in predictions, particularly in complex or long-context tasks. However, with proper quantization techniques (e.g., post-training quantization), the impact can be minimized, maintaining acceptable performance for most applications.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 9,
+            "util_peak": 97.0,
+            "util_avg": 80.22222222222223,
+            "vram_used_peak_mb": 3292.0,
+            "power_peak_w": 44.69,
+            "power_avg_w": 43.00222222222222,
+            "temp_peak_c": 51.0
+          }
+        },
+        {
+          "model": "qwen3:4b-q4_K_M",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 140.99800000076357,
+          "ttfv_ms": 140.99810000061552,
+          "wall_total_ms": 2599.6043000004647,
+          "load_ms": 111.6815,
+          "total_ms": 2587.6868,
+          "prompt_eval_ms": 15.558,
+          "eval_ms": 2456.885,
+          "prompt_tokens": 69,
+          "output_tokens": 202,
+          "gen_tps": 82.21793042816411,
+          "prompt_tps": 4435.017354415734,
+          "response_text": "Quantizing an LLM from FP16 to INT4 affects three key aspects:\n\n1. **Memory Footprint**: INT4 reduces the precision of weights and activations, significantly lowering the memory usage. For example, a model using FP16 (2 bytes per weight) would use 2 bytes per weight, while INT4 uses 4 bits, reducing memory by ~75%, enabling larger batch sizes or more models to run simultaneously.\n\n2. **Inference Throughput**: INT4 typically offers higher inference speed due to lower computational complexity. The reduced precision allows for more efficient operations, leading to faster inference times, especially on hardware optimized for low-precision calculations.\n\n3. **Output Quality**: INT4 can slightly degrade output quality due to the loss of precision. This may lead to minor errors in predictions, particularly in complex or long-context tasks. However, with proper quantization techniques (e.g., post-training quantization), the impact can be minimized, maintaining acceptable performance for most applications.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 9,
+            "util_peak": 97.0,
+            "util_avg": 97.0,
+            "vram_used_peak_mb": 3292.0,
+            "power_peak_w": 44.69,
+            "power_avg_w": 44.446666666666665,
+            "temp_peak_c": 52.0
+          }
+        }
+      ],
+      "aggregate": {
+        "n_ok": 3,
+        "n_total": 3,
+        "gen_tps": {
+          "median": 82.40407777802709,
+          "min": 82.21793042816411,
+          "max": 85.50966724886615,
+          "stdev": 1.5097780592602585
+        },
+        "prompt_tps": {
+          "median": 4435.017354415734,
+          "min": 4416.565320361006,
+          "max": 4993.125407048267,
+          "stdev": 267.5499142496295
+        },
+        "ttft_ms": {
+          "median": 136.96110000000772,
+          "min": 126.52729999990697,
+          "max": 140.99800000076357,
+          "stdev": 6.09701113090118
+        },
+        "ttfv_ms": {
+          "median": 136.96130000062112,
+          "min": 126.52749999961088,
+          "max": 140.99810000061552,
+          "stdev": 6.09697740314468
+        },
+        "wall_total_ms": {
+          "median": 2579.894100000274,
+          "min": 2500.543000000107,
+          "max": 2599.6043000004647,
+          "stdev": 42.81514557184554
+        },
+        "load_ms": {
+          "median": 107.1723,
+          "min": 93.6129,
+          "max": 111.6815,
+          "stdev": 7.678718924982795
+        },
+        "eval_ms": {
+          "median": 2451.335,
+          "min": 2362.306,
+          "max": 2456.885,
+          "stdev": 43.33609296597421
+        },
+        "prompt_eval_ms": {
+          "median": 15.558,
+          "min": 13.819,
+          "max": 15.623,
+          "stdev": 0.8355146118810045
+        },
+        "output_tokens": {
+          "median": 202,
+          "min": 202,
+          "max": 202,
+          "stdev": 0.0
+        },
+        "prompt_tokens": {
+          "median": 69,
+          "min": 69,
+          "max": 69,
+          "stdev": 0.0
+        }
+      }
+    },
+    {
+      "label": "qwen3:4b-q4_K_M \u00b7 prefill_stress",
+      "model": "qwen3:4b-q4_K_M",
+      "context_length": null,
+      "prompt_key": "prefill_stress",
+      "prompt_note": "Long prefill (~400 tokens of context) \u2014 stresses prompt-processing / prefill throughput and exercises KV-cache growth.",
+      "prompt_text": "You are reviewing the following notes before answering.\n\nLocal AI inference on client hardware is bounded by several distinct resources, and confusing them is a common mistake. Model weights occupy memory proportional to parameter count and precision: a 7-billion-parameter model at FP16 needs roughly 14 GB just for weights, while the same model quantized to 4-bit needs closer to 4 GB. But weights are only one consumer of memory. The KV cache grows with both context length and batch size, and at long context it can rival or exceed the size of the weights themselves. Activations and workspace scratch memory add further overhead. On a discrete GPU with a fixed VRAM budget, exceeding capacity forces the runtime to offload layers to system RAM, and the resulting transfers across the PCIe bus dominate latency, collapsing throughput. On a unified-memory system the CPU and GPU share one pool, so there is no discrete-VRAM ceiling in the same sense, but total system memory and memory bandwidth still bound what is practical. Separately, compute throughput \u2014 how fast the accelerator performs the matrix multiplications that dominate attention and the feed-forward layers \u2014 determines the ceiling on tokens per second once everything is resident. Memory capacity and compute throughput are therefore independent constraints: a workload can be memory-bound, compute-bound, or bandwidth-bound, and the bottleneck can shift as context length grows. Quantization primarily relieves the memory-capacity constraint and can improve throughput by reducing the bytes moved per operation, at some risk to output quality. Time to first token is dominated by model load plus prompt prefill, while steady-state tokens per second reflects decode speed; these are different metrics and a system can be strong at one and weak at the other.\n\nBased only on the notes above, answer in three sentences: why can a model that fits in a GPU's VRAM still run slowly as the conversation gets longer?",
+      "attachments": {
+        "files": [],
+        "images": [],
+        "assembled_chars": 1978,
+        "assembled_approx_tokens": 494
+      },
+      "residency": "100% GPU",
+      "cold_start": {
+        "model": "qwen3:4b-q4_K_M",
+        "ok": true,
+        "error": null,
+        "ttft_ms": 2243.6331000008067,
+        "ttfv_ms": 2243.6332000006587,
+        "wall_total_ms": 3281.81400000085,
+        "load_ms": 2027.2232,
+        "total_ms": 3266.3907,
+        "prompt_eval_ms": 198.975,
+        "eval_ms": 1036.487,
+        "prompt_tokens": 393,
+        "output_tokens": 103,
+        "gen_tps": 99.37413590329643,
+        "prompt_tps": 1975.1225028269882,
+        "response_text": "A model that fits in a GPU's VRAM can still run slowly as the conversation gets longer because the KV cache, which grows with context length, can consume a significant amount of memory. As the context length increases, the KV cache can rival or exceed the size of the model weights, leading to increased memory usage and potential bottlenecks. Additionally, the compute throughput and memory bandwidth become limiting factors, as the model must process more tokens and the system may become bandwidth-bound, slowing down the overall performance.",
+        "thinking_chars": 0,
+        "approximate_tokens": false,
+        "stream_chunks": null,
+        "gpu": {
+          "available": true,
+          "samples": 11,
+          "util_peak": 96.0,
+          "util_avg": 31.454545454545453,
+          "vram_used_peak_mb": 3296.0,
+          "power_peak_w": 57.0,
+          "power_avg_w": 21.44909090909091,
+          "temp_peak_c": 56.0
+        }
+      },
+      "runs": [
+        {
+          "model": "qwen3:4b-q4_K_M",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 108.2315000003291,
+          "ttfv_ms": 108.23170000003302,
+          "wall_total_ms": 1014.0185000000201,
+          "load_ms": 91.5483,
+          "total_ms": 1011.8169,
+          "prompt_eval_ms": 9.517,
+          "eval_ms": 904.031,
+          "prompt_tokens": 393,
+          "output_tokens": 103,
+          "gen_tps": 113.93414606357526,
+          "prompt_tps": 41294.52558579385,
+          "response_text": "A model that fits in a GPU's VRAM can still run slowly as the conversation gets longer because the KV cache, which grows with context length, can consume a significant amount of memory. As the context length increases, the KV cache can rival or exceed the size of the model weights, leading to increased memory usage and potential bottlenecks. Additionally, the compute throughput and memory bandwidth become limiting factors, as the model must process more tokens and the system may become bandwidth-bound, slowing down the overall performance.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 4,
+            "util_peak": 96.0,
+            "util_avg": 90.5,
+            "vram_used_peak_mb": 3296.0,
+            "power_peak_w": 118.83,
+            "power_avg_w": 88.1625,
+            "temp_peak_c": 62.0
+          }
+        },
+        {
+          "model": "qwen3:4b-q4_K_M",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 120.5694999998741,
+          "ttfv_ms": 120.5697000004875,
+          "wall_total_ms": 1024.1473000005499,
+          "load_ms": 93.1676,
+          "total_ms": 1007.8679,
+          "prompt_eval_ms": 9.305,
+          "eval_ms": 901.902,
+          "prompt_tokens": 393,
+          "output_tokens": 103,
+          "gen_tps": 114.20309523651129,
+          "prompt_tps": 42235.35733476625,
+          "response_text": "A model that fits in a GPU's VRAM can still run slowly as the conversation gets longer because the KV cache, which grows with context length, can consume a significant amount of memory. As the context length increases, the KV cache can rival or exceed the size of the model weights, leading to increased memory usage and potential bottlenecks. Additionally, the compute throughput and memory bandwidth become limiting factors, as the model must process more tokens and the system may become bandwidth-bound, slowing down the overall performance.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 4,
+            "util_peak": 96.0,
+            "util_avg": 94.0,
+            "vram_used_peak_mb": 3296.0,
+            "power_peak_w": 119.89,
+            "power_avg_w": 113.175,
+            "temp_peak_c": 64.0
+          }
+        },
+        {
+          "model": "qwen3:4b-q4_K_M",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 134.37029999931838,
+          "ttfv_ms": 134.37049999993178,
+          "wall_total_ms": 1035.9552999998414,
+          "load_ms": 96.5434,
+          "total_ms": 1009.7553,
+          "prompt_eval_ms": 9.328,
+          "eval_ms": 899.579,
+          "prompt_tokens": 393,
+          "output_tokens": 103,
+          "gen_tps": 114.4980040663466,
+          "prompt_tps": 42131.21783876501,
+          "response_text": "A model that fits in a GPU's VRAM can still run slowly as the conversation gets longer because the KV cache, which grows with context length, can consume a significant amount of memory. As the context length increases, the KV cache can rival or exceed the size of the model weights, leading to increased memory usage and potential bottlenecks. Additionally, the compute throughput and memory bandwidth become limiting factors, as the model must process more tokens and the system may become bandwidth-bound, slowing down the overall performance.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 4,
+            "util_peak": 97.0,
+            "util_avg": 96.5,
+            "vram_used_peak_mb": 3296.0,
+            "power_peak_w": 118.45,
+            "power_avg_w": 115.305,
+            "temp_peak_c": 64.0
+          }
+        }
+      ],
+      "aggregate": {
+        "n_ok": 3,
+        "n_total": 3,
+        "gen_tps": {
+          "median": 114.20309523651129,
+          "min": 113.93414606357526,
+          "max": 114.4980040663466,
+          "stdev": 0.23027537206741824
+        },
+        "prompt_tps": {
+          "median": 42131.21783876501,
+          "min": 41294.52558579385,
+          "max": 42235.35733476625,
+          "stdev": 421.1180014996901
+        },
+        "ttft_ms": {
+          "median": 120.5694999998741,
+          "min": 108.2315000003291,
+          "max": 134.37029999931838,
+          "stdev": 10.67668898946878
+        },
+        "ttfv_ms": {
+          "median": 120.5697000004875,
+          "min": 108.23170000003302,
+          "max": 134.37049999993178,
+          "stdev": 10.676688989832963
+        },
+        "wall_total_ms": {
+          "median": 1024.1473000005499,
+          "min": 1014.0185000000201,
+          "max": 1035.9552999998414,
+          "stdev": 8.964402735673508
+        },
+        "load_ms": {
+          "median": 93.1676,
+          "min": 91.5483,
+          "max": 96.5434,
+          "stdev": 2.080843369085401
+        },
+        "eval_ms": {
+          "median": 901.902,
+          "min": 899.579,
+          "max": 904.031,
+          "stdev": 1.818096501533648
+        },
+        "prompt_eval_ms": {
+          "median": 9.328,
+          "min": 9.305,
+          "max": 9.517,
+          "stdev": 0.09498186961497201
+        },
+        "output_tokens": {
+          "median": 103,
+          "min": 103,
+          "max": 103,
+          "stdev": 0.0
+        },
+        "prompt_tokens": {
+          "median": 393,
+          "min": 393,
+          "max": 393,
+          "stdev": 0.0
+        }
+      }
+    },
+    {
+      "label": "qwen3:4b-q8_0 \u00b7 short_qa",
+      "model": "qwen3:4b-q8_0",
+      "context_length": null,
+      "prompt_key": "short_qa",
+      "prompt_note": "Short prompt, short answer \u2014 isolates decode speed with minimal prefill.",
+      "prompt_text": "In one sentence, what is a KV cache in transformer LLM inference?",
+      "attachments": {
+        "files": [],
+        "images": [],
+        "assembled_chars": 65,
+        "assembled_approx_tokens": 16
+      },
+      "residency": "100% GPU",
+      "cold_start": {
+        "model": "qwen3:4b-q8_0",
+        "ok": true,
+        "error": null,
+        "ttft_ms": 4533.849700000246,
+        "ttfv_ms": 4533.8502000004155,
+        "wall_total_ms": 5008.844599999975,
+        "load_ms": 4409.9436,
+        "total_ms": 4996.8279,
+        "prompt_eval_ms": 110.423,
+        "eval_ms": 474.066,
+        "prompt_tokens": 31,
+        "output_tokens": 34,
+        "gen_tps": 71.71997148076429,
+        "prompt_tps": 280.7386142379758,
+        "response_text": "A KV cache in transformer LLM inference is a mechanism that stores the key-value pairs generated during the processing of previous tokens to efficiently compute attention scores for subsequent tokens.",
+        "thinking_chars": 0,
+        "approximate_tokens": false,
+        "stream_chunks": null,
+        "gpu": {
+          "available": true,
+          "samples": 17,
+          "util_peak": 10.0,
+          "util_avg": 4.235294117647059,
+          "vram_used_peak_mb": 4960.0,
+          "power_peak_w": 18.58,
+          "power_avg_w": 14.653529411764705,
+          "temp_peak_c": 52.0
+        }
+      },
+      "runs": [
+        {
+          "model": "qwen3:4b-q8_0",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 129.33520000024146,
+          "ttfv_ms": 129.33549999979732,
+          "wall_total_ms": 558.9506000005713,
+          "load_ms": 93.8423,
+          "total_ms": 538.3303,
+          "prompt_eval_ms": 13.674,
+          "eval_ms": 428.844,
+          "prompt_tokens": 31,
+          "output_tokens": 34,
+          "gen_tps": 79.28290940295305,
+          "prompt_tps": 2267.076203013017,
+          "response_text": "A KV cache in transformer LLM inference is a mechanism that stores the key-value pairs generated during the processing of previous tokens to efficiently compute attention scores for subsequent tokens.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 2,
+            "util_peak": 97.0,
+            "util_avg": 97.0,
+            "vram_used_peak_mb": 4960.0,
+            "power_peak_w": 78.59,
+            "power_avg_w": 78.59,
+            "temp_peak_c": 61.0
+          }
+        },
+        {
+          "model": "qwen3:4b-q8_0",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 110.339799999565,
+          "ttfv_ms": 110.3400000001784,
+          "wall_total_ms": 540.0731999998243,
+          "load_ms": 90.3509,
+          "total_ms": 538.6817,
+          "prompt_eval_ms": 13.558,
+          "eval_ms": 428.908,
+          "prompt_tokens": 31,
+          "output_tokens": 34,
+          "gen_tps": 79.27107911253695,
+          "prompt_tps": 2286.472931110783,
+          "response_text": "A KV cache in transformer LLM inference is a mechanism that stores the key-value pairs generated during the processing of previous tokens to efficiently compute attention scores for subsequent tokens.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 2,
+            "util_peak": 98.0,
+            "util_avg": 97.5,
+            "vram_used_peak_mb": 4960.0,
+            "power_peak_w": 110.55,
+            "power_avg_w": 110.17,
+            "temp_peak_c": 62.0
+          }
+        },
+        {
+          "model": "qwen3:4b-q8_0",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 110.41089999980613,
+          "ttfv_ms": 110.41120000027149,
+          "wall_total_ms": 540.7268999997541,
+          "load_ms": 93.2181,
+          "total_ms": 539.698,
+          "prompt_eval_ms": 13.754,
+          "eval_ms": 429.523,
+          "prompt_tokens": 31,
+          "output_tokens": 34,
+          "gen_tps": 79.15757712625401,
+          "prompt_tps": 2253.889777519267,
+          "response_text": "A KV cache in transformer LLM inference is a mechanism that stores the key-value pairs generated during the processing of previous tokens to efficiently compute attention scores for subsequent tokens.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 2,
+            "util_peak": 98.0,
+            "util_avg": 97.5,
+            "vram_used_peak_mb": 4960.0,
+            "power_peak_w": 110.55,
+            "power_avg_w": 94.17,
+            "temp_peak_c": 62.0
+          }
+        }
+      ],
+      "aggregate": {
+        "n_ok": 3,
+        "n_total": 3,
+        "gen_tps": {
+          "median": 79.27107911253695,
+          "min": 79.15757712625401,
+          "max": 79.28290940295305,
+          "stdev": 0.05650057644156985
+        },
+        "prompt_tps": {
+          "median": 2267.076203013017,
+          "min": 2253.889777519267,
+          "max": 2286.472931110783,
+          "stdev": 13.382313270255011
+        },
+        "ttft_ms": {
+          "median": 110.41089999980613,
+          "min": 110.339799999565,
+          "max": 129.33520000024146,
+          "stdev": 8.937806137117205
+        },
+        "ttfv_ms": {
+          "median": 110.41120000027149,
+          "min": 110.3400000001784,
+          "max": 129.33549999979732,
+          "stdev": 8.937829839430876
+        },
+        "wall_total_ms": {
+          "median": 540.7268999997541,
+          "min": 540.0731999998243,
+          "max": 558.9506000005713,
+          "stdev": 8.748884349179713
+        },
+        "load_ms": {
+          "median": 93.2181,
+          "min": 90.3509,
+          "max": 93.8423,
+          "stdev": 1.5202461584303466
+        },
+        "eval_ms": {
+          "median": 428.908,
+          "min": 428.844,
+          "max": 429.523,
+          "stdev": 0.3061158096029917
+        },
+        "prompt_eval_ms": {
+          "median": 13.674,
+          "min": 13.558,
+          "max": 13.754,
+          "stdev": 0.08046531343794447
+        },
+        "output_tokens": {
+          "median": 34,
+          "min": 34,
+          "max": 34,
+          "stdev": 0.0
+        },
+        "prompt_tokens": {
+          "median": 31,
+          "min": 31,
+          "max": 31,
+          "stdev": 0.0
+        }
+      }
+    },
+    {
+      "label": "qwen3:4b-q8_0 \u00b7 reasoning",
+      "model": "qwen3:4b-q8_0",
+      "context_length": null,
+      "prompt_key": "reasoning",
+      "prompt_note": "Medium prompt, structured reasoning \u2014 representative interactive task.",
+      "prompt_text": "Explain, step by step and concisely, how quantizing an LLM from FP16 to INT4 affects (1) memory footprint, (2) inference throughput, and (3) output quality. Keep it under 200 words.",
+      "attachments": {
+        "files": [],
+        "images": [],
+        "assembled_chars": 181,
+        "assembled_approx_tokens": 45
+      },
+      "residency": "100% GPU",
+      "cold_start": {
+        "model": "qwen3:4b-q8_0",
+        "ok": true,
+        "error": null,
+        "ttft_ms": 2383.808599999611,
+        "ttfv_ms": 2383.808699999463,
+        "wall_total_ms": 4882.565899999463,
+        "load_ms": 2296.0575,
+        "total_ms": 4875.1228,
+        "prompt_eval_ms": 84.746,
+        "eval_ms": 2497.334,
+        "prompt_tokens": 69,
+        "output_tokens": 190,
+        "gen_tps": 76.08113292014605,
+        "prompt_tps": 814.1977202463833,
+        "response_text": "Quantizing an LLM from FP16 to INT4 affects three key aspects:\n\n1. **Memory Footprint**: INT4 reduces the precision of weights from 16 bits to 4 bits, significantly lowering the memory usage. This allows the model to run on devices with limited RAM, such as GPUs with lower VRAM.\n\n2. **Inference Throughput**: INT4 quantization typically increases inference speed because lower precision arithmetic is faster. This leads to higher throughput, meaning more tokens can be processed per second.\n\n3. **Output Quality**: INT4 can introduce quantization errors, which may reduce output quality. The lower precision can lead to less accurate predictions, especially in complex or long-context tasks. However, some models and quantization techniques (like dynamic quantization or post-training quantization) can minimize this impact.\n\nIn summary, INT4 reduces memory and boosts speed but may slightly lower output quality compared to FP16.",
+        "thinking_chars": 0,
+        "approximate_tokens": false,
+        "stream_chunks": null,
+        "gpu": {
+          "available": true,
+          "samples": 17,
+          "util_peak": 98.0,
+          "util_avg": 49.23529411764706,
+          "vram_used_peak_mb": 4960.0,
+          "power_peak_w": 111.25,
+          "power_avg_w": 56.822941176470586,
+          "temp_peak_c": 64.0
+        }
+      },
+      "runs": [
+        {
+          "model": "qwen3:4b-q8_0",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 152.36840000034135,
+          "ttfv_ms": 152.36869999989722,
+          "wall_total_ms": 2615.479900000537,
+          "load_ms": 102.3532,
+          "total_ms": 2601.0966,
+          "prompt_eval_ms": 13.573,
+          "eval_ms": 2461.996,
+          "prompt_tokens": 69,
+          "output_tokens": 186,
+          "gen_tps": 75.54845743047511,
+          "prompt_tps": 5083.621896411994,
+          "response_text": "Quantizing an LLM from FP16 to INT4 affects three key aspects:\n\n1. **Memory Footprint**: INT4 reduces the precision of weights from 16 bits to 4 bits, significantly lowering the memory usage. This allows the model to run on devices with limited RAM, such as GPUs with lower VRAM.\n\n2. **Inference Throughput**: INT4 quantization typically increases inference speed because lower precision arithmetic is faster. This leads to higher throughput, meaning more tokens can be processed per second.\n\n3. **Output Quality**: INT4 can introduce quantization errors, which may reduce output quality. The lower precision can lead to less accurate predictions, especially in complex or long-context tasks. However, some models and quantization techniques (like dynamic or mixed precision) can mitigate this impact.\n\nIn summary, INT4 reduces memory and boosts speed but may slightly lower output quality compared to FP16.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 9,
+            "util_peak": 98.0,
+            "util_avg": 84.0,
+            "vram_used_peak_mb": 4960.0,
+            "power_peak_w": 110.44,
+            "power_avg_w": 103.55333333333334,
+            "temp_peak_c": 65.0
+          }
+        },
+        {
+          "model": "qwen3:4b-q8_0",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 135.57920000039303,
+          "ttfv_ms": 135.57940000009694,
+          "wall_total_ms": 2605.802500000209,
+          "load_ms": 104.0731,
+          "total_ms": 2586.791,
+          "prompt_eval_ms": 14.473,
+          "eval_ms": 2467.998,
+          "prompt_tokens": 69,
+          "output_tokens": 186,
+          "gen_tps": 75.36472882068786,
+          "prompt_tps": 4767.498099910178,
+          "response_text": "Quantizing an LLM from FP16 to INT4 affects three key aspects:\n\n1. **Memory Footprint**: INT4 reduces the precision of weights from 16 bits to 4 bits, significantly lowering the memory usage. This allows the model to run on devices with limited RAM, such as GPUs with lower VRAM.\n\n2. **Inference Throughput**: INT4 quantization typically increases inference speed because lower precision arithmetic is faster. This leads to higher throughput, meaning more tokens can be processed per second.\n\n3. **Output Quality**: INT4 can introduce quantization errors, which may reduce output quality. The lower precision can lead to less accurate predictions, especially in complex or long-context tasks. However, some models and quantization techniques (like dynamic or mixed precision) can mitigate this impact.\n\nIn summary, INT4 reduces memory and boosts speed but may slightly lower output quality compared to FP16.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 9,
+            "util_peak": 98.0,
+            "util_avg": 90.55555555555556,
+            "vram_used_peak_mb": 4960.0,
+            "power_peak_w": 113.84,
+            "power_avg_w": 107.20777777777778,
+            "temp_peak_c": 67.0
+          }
+        },
+        {
+          "model": "qwen3:4b-q8_0",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 146.06280000043625,
+          "ttfv_ms": 146.0629000002882,
+          "wall_total_ms": 2601.8447000005835,
+          "load_ms": 101.005,
+          "total_ms": 2575.1413,
+          "prompt_eval_ms": 13.547,
+          "eval_ms": 2454.456,
+          "prompt_tokens": 69,
+          "output_tokens": 186,
+          "gen_tps": 75.78053955744166,
+          "prompt_tps": 5093.378607809847,
+          "response_text": "Quantizing an LLM from FP16 to INT4 affects three key aspects:\n\n1. **Memory Footprint**: INT4 reduces the precision of weights from 16 bits to 4 bits, significantly lowering the memory usage. This allows the model to run on devices with limited RAM, such as GPUs with lower VRAM.\n\n2. **Inference Throughput**: INT4 quantization typically increases inference speed because lower precision arithmetic is faster. This leads to higher throughput, meaning more tokens can be processed per second.\n\n3. **Output Quality**: INT4 can introduce quantization errors, which may reduce output quality. The lower precision can lead to less accurate predictions, especially in complex or long-context tasks. However, some models and quantization techniques (like dynamic or mixed precision) can mitigate this impact.\n\nIn summary, INT4 reduces memory and boosts speed but may slightly lower output quality compared to FP16.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 9,
+            "util_peak": 98.0,
+            "util_avg": 97.11111111111111,
+            "vram_used_peak_mb": 4960.0,
+            "power_peak_w": 113.33,
+            "power_avg_w": 110.41333333333334,
+            "temp_peak_c": 68.0
+          }
+        }
+      ],
+      "aggregate": {
+        "n_ok": 3,
+        "n_total": 3,
+        "gen_tps": {
+          "median": 75.54845743047511,
+          "min": 75.36472882068786,
+          "max": 75.78053955744166,
+          "stdev": 0.17013618222255847
+        },
+        "prompt_tps": {
+          "median": 5083.621896411994,
+          "min": 4767.498099910178,
+          "max": 5093.378607809847,
+          "stdev": 151.37427990872644
+        },
+        "ttft_ms": {
+          "median": 146.06280000043625,
+          "min": 135.57920000039303,
+          "max": 152.36840000034135,
+          "stdev": 6.924543281834343
+        },
+        "ttfv_ms": {
+          "median": 146.0629000002882,
+          "min": 135.57940000009694,
+          "max": 152.36869999989722,
+          "stdev": 6.9245736360713765
+        },
+        "wall_total_ms": {
+          "median": 2605.802500000209,
+          "min": 2601.8447000005835,
+          "max": 2615.479900000537,
+          "stdev": 5.727467257213832
+        },
+        "load_ms": {
+          "median": 102.3532,
+          "min": 101.005,
+          "max": 104.0731,
+          "stdev": 1.2556068413321109
+        },
+        "eval_ms": {
+          "median": 2461.996,
+          "min": 2454.456,
+          "max": 2467.998,
+          "stdev": 5.5403707056076295
+        },
+        "prompt_eval_ms": {
+          "median": 13.573,
+          "min": 13.547,
+          "max": 14.473,
+          "stdev": 0.43052319591657584
+        },
+        "output_tokens": {
+          "median": 186,
+          "min": 186,
+          "max": 186,
+          "stdev": 0.0
+        },
+        "prompt_tokens": {
+          "median": 69,
+          "min": 69,
+          "max": 69,
+          "stdev": 0.0
+        }
+      }
+    },
+    {
+      "label": "qwen3:4b-q8_0 \u00b7 prefill_stress",
+      "model": "qwen3:4b-q8_0",
+      "context_length": null,
+      "prompt_key": "prefill_stress",
+      "prompt_note": "Long prefill (~400 tokens of context) \u2014 stresses prompt-processing / prefill throughput and exercises KV-cache growth.",
+      "prompt_text": "You are reviewing the following notes before answering.\n\nLocal AI inference on client hardware is bounded by several distinct resources, and confusing them is a common mistake. Model weights occupy memory proportional to parameter count and precision: a 7-billion-parameter model at FP16 needs roughly 14 GB just for weights, while the same model quantized to 4-bit needs closer to 4 GB. But weights are only one consumer of memory. The KV cache grows with both context length and batch size, and at long context it can rival or exceed the size of the weights themselves. Activations and workspace scratch memory add further overhead. On a discrete GPU with a fixed VRAM budget, exceeding capacity forces the runtime to offload layers to system RAM, and the resulting transfers across the PCIe bus dominate latency, collapsing throughput. On a unified-memory system the CPU and GPU share one pool, so there is no discrete-VRAM ceiling in the same sense, but total system memory and memory bandwidth still bound what is practical. Separately, compute throughput \u2014 how fast the accelerator performs the matrix multiplications that dominate attention and the feed-forward layers \u2014 determines the ceiling on tokens per second once everything is resident. Memory capacity and compute throughput are therefore independent constraints: a workload can be memory-bound, compute-bound, or bandwidth-bound, and the bottleneck can shift as context length grows. Quantization primarily relieves the memory-capacity constraint and can improve throughput by reducing the bytes moved per operation, at some risk to output quality. Time to first token is dominated by model load plus prompt prefill, while steady-state tokens per second reflects decode speed; these are different metrics and a system can be strong at one and weak at the other.\n\nBased only on the notes above, answer in three sentences: why can a model that fits in a GPU's VRAM still run slowly as the conversation gets longer?",
+      "attachments": {
+        "files": [],
+        "images": [],
+        "assembled_chars": 1978,
+        "assembled_approx_tokens": 494
+      },
+      "residency": "100% GPU",
+      "cold_start": {
+        "model": "qwen3:4b-q8_0",
+        "ok": true,
+        "error": null,
+        "ttft_ms": 2514.8503000000346,
+        "ttfv_ms": 2514.850500000648,
+        "wall_total_ms": 3739.2423999999664,
+        "load_ms": 2348.532,
+        "total_ms": 3716.0093,
+        "prompt_eval_ms": 141.057,
+        "eval_ms": 1222.703,
+        "prompt_tokens": 393,
+        "output_tokens": 91,
+        "gen_tps": 74.42526925999199,
+        "prompt_tps": 2786.107743678088,
+        "response_text": "A model that fits in a GPU's VRAM can still run slowly as the conversation gets longer because the KV cache grows with context length and can rival or exceed the size of the model weights. This increases memory usage, which can lead to slower performance if the system's memory bandwidth or compute throughput becomes the bottleneck. Additionally, as context length increases, the model may become memory-bound or bandwidth-bound, limiting how many tokens it can process per second.",
+        "thinking_chars": 0,
+        "approximate_tokens": false,
+        "stream_chunks": null,
+        "gpu": {
+          "available": true,
+          "samples": 13,
+          "util_peak": 97.0,
+          "util_avg": 26.923076923076923,
+          "vram_used_peak_mb": 4964.0,
+          "power_peak_w": 113.0,
+          "power_avg_w": 51.21076923076923,
+          "temp_peak_c": 66.0
+        }
+      },
+      "runs": [
+        {
+          "model": "qwen3:4b-q8_0",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 138.5272999996232,
+          "ttfv_ms": 138.52749999932712,
+          "wall_total_ms": 1327.0016999995278,
+          "load_ms": 100.4634,
+          "total_ms": 1312.0465,
+          "prompt_eval_ms": 13.76,
+          "eval_ms": 1186.043,
+          "prompt_tokens": 393,
+          "output_tokens": 91,
+          "gen_tps": 76.72571736437887,
+          "prompt_tps": 28561.04651162791,
+          "response_text": "A model that fits in a GPU's VRAM can still run slowly as the conversation gets longer because the KV cache grows with context length and can rival or exceed the size of the model weights. This increases memory usage, which can lead to slower performance if the system's memory bandwidth or compute throughput becomes the bottleneck. Additionally, as context length increases, the model may become memory-bound or bandwidth-bound, limiting how many tokens it can process per second.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 5,
+            "util_peak": 98.0,
+            "util_avg": 96.8,
+            "vram_used_peak_mb": 4964.0,
+            "power_peak_w": 113.14,
+            "power_avg_w": 96.474,
+            "temp_peak_c": 68.0
+          }
+        },
+        {
+          "model": "qwen3:4b-q8_0",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 132.82909999998083,
+          "ttfv_ms": 132.82930000059423,
+          "wall_total_ms": 1357.2131000000809,
+          "load_ms": 102.7366,
+          "total_ms": 1344.3055,
+          "prompt_eval_ms": 13.633,
+          "eval_ms": 1222.712,
+          "prompt_tokens": 393,
+          "output_tokens": 91,
+          "gen_tps": 74.42472143889975,
+          "prompt_tps": 28827.11068730287,
+          "response_text": "A model that fits in a GPU's VRAM can still run slowly as the conversation gets longer because the KV cache grows with context length and can rival or exceed the size of the model weights. This increases memory usage, which can lead to slower performance if the system's memory bandwidth or compute throughput becomes the bottleneck. Additionally, as context length increases, the model may become memory-bound or bandwidth-bound, limiting how many tokens it can process per second.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 5,
+            "util_peak": 97.0,
+            "util_avg": 97.0,
+            "vram_used_peak_mb": 4964.0,
+            "power_peak_w": 112.91,
+            "power_avg_w": 99.364,
+            "temp_peak_c": 68.0
+          }
+        },
+        {
+          "model": "qwen3:4b-q8_0",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 111.68279999947117,
+          "ttfv_ms": 111.68300000008458,
+          "wall_total_ms": 1329.0213999998741,
+          "load_ms": 92.8406,
+          "total_ms": 1326.5969,
+          "prompt_eval_ms": 14.533,
+          "eval_ms": 1215.247,
+          "prompt_tokens": 393,
+          "output_tokens": 91,
+          "gen_tps": 74.88189643751436,
+          "prompt_tps": 27041.904630840156,
+          "response_text": "A model that fits in a GPU's VRAM can still run slowly as the conversation gets longer because the KV cache grows with context length and can rival or exceed the size of the model weights. This increases memory usage, which can lead to slower performance if the system's memory bandwidth or compute throughput becomes the bottleneck. Additionally, as context length increases, the model may become memory-bound or bandwidth-bound, limiting how many tokens it can process per second.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 5,
+            "util_peak": 97.0,
+            "util_avg": 73.4,
+            "vram_used_peak_mb": 4964.0,
+            "power_peak_w": 104.24,
+            "power_avg_w": 83.53399999999999,
+            "temp_peak_c": 68.0
+          }
+        }
+      ],
+      "aggregate": {
+        "n_ok": 3,
+        "n_total": 3,
+        "gen_tps": {
+          "median": 74.88189643751436,
+          "min": 74.42472143889975,
+          "max": 76.72571736437887,
+          "stdev": 0.9946114170744298
+        },
+        "prompt_tps": {
+          "median": 28561.04651162791,
+          "min": 27041.904630840156,
+          "max": 28827.11068730287,
+          "stdev": 786.3800935349337
+        },
+        "ttft_ms": {
+          "median": 132.82909999998083,
+          "min": 111.68279999947117,
+          "max": 138.5272999996232,
+          "stdev": 11.548269072826656
+        },
+        "ttfv_ms": {
+          "median": 132.82930000059423,
+          "min": 111.68300000008458,
+          "max": 138.52749999932712,
+          "stdev": 11.548269072541887
+        },
+        "wall_total_ms": {
+          "median": 1329.0213999998741,
+          "min": 1327.0016999995278,
+          "max": 1357.2131000000809,
+          "stdev": 13.790414654093286
+        },
+        "load_ms": {
+          "median": 100.4634,
+          "min": 92.8406,
+          "max": 102.7366,
+          "stdev": 4.23222208617018
+        },
+        "eval_ms": {
+          "median": 1215.247,
+          "min": 1186.043,
+          "max": 1222.712,
+          "stdev": 15.822682038418478
+        },
+        "prompt_eval_ms": {
+          "median": 13.76,
+          "min": 13.633,
+          "max": 14.533,
+          "stdev": 0.397723801427853
+        },
+        "output_tokens": {
+          "median": 91,
+          "min": 91,
+          "max": 91,
+          "stdev": 0.0
+        },
+        "prompt_tokens": {
+          "median": 393,
+          "min": 393,
+          "max": 393,
+          "stdev": 0.0
+        }
+      }
+    },
+    {
+      "label": "qwen3:4b-fp16 \u00b7 short_qa",
+      "model": "qwen3:4b-fp16",
+      "context_length": null,
+      "prompt_key": "short_qa",
+      "prompt_note": "Short prompt, short answer \u2014 isolates decode speed with minimal prefill.",
+      "prompt_text": "In one sentence, what is a KV cache in transformer LLM inference?",
+      "attachments": {
+        "files": [],
+        "images": [],
+        "assembled_chars": 65,
+        "assembled_approx_tokens": 16
+      },
+      "residency": "36%/64% CPU/GPU",
+      "cold_start": {
+        "model": "qwen3:4b-fp16",
+        "ok": true,
+        "error": null,
+        "ttft_ms": 7936.119700000745,
+        "ttfv_ms": 7936.119900000449,
+        "wall_total_ms": 9907.97030000067,
+        "load_ms": 7688.9502,
+        "total_ms": 9883.2189,
+        "prompt_eval_ms": 220.78,
+        "eval_ms": 1970.301,
+        "prompt_tokens": 31,
+        "output_tokens": 39,
+        "gen_tps": 19.79392996298535,
+        "prompt_tps": 140.41126913669717,
+        "response_text": "A KV cache in transformer LLM inference is a mechanism that stores the key and value components of previously processed tokens to efficiently reuse them during the decoding process, reducing computational overhead and memory usage.",
+        "thinking_chars": 0,
+        "approximate_tokens": false,
+        "stream_chunks": null,
+        "gpu": {
+          "available": true,
+          "samples": 34,
+          "util_peak": 35.0,
+          "util_avg": 8.676470588235293,
+          "vram_used_peak_mb": 5994.0,
+          "power_peak_w": 50.59,
+          "power_avg_w": 19.11176470588235,
+          "temp_peak_c": 59.0
+        }
+      },
+      "runs": [
+        {
+          "model": "qwen3:4b-fp16",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 219.5772000004581,
+          "ttfv_ms": 219.57740000016202,
+          "wall_total_ms": 2367.45719999999,
+          "load_ms": 156.0887,
+          "total_ms": 2365.2442,
+          "prompt_eval_ms": 58.182,
+          "eval_ms": 2146.612,
+          "prompt_tokens": 31,
+          "output_tokens": 39,
+          "gen_tps": 18.16816453089799,
+          "prompt_tps": 532.8108349661408,
+          "response_text": "A KV cache in transformer LLM inference is a mechanism that stores the key and value components of previously processed tokens to efficiently reuse them during the decoding process, reducing computational overhead and memory usage.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 8,
+            "util_peak": 42.0,
+            "util_avg": 37.125,
+            "vram_used_peak_mb": 5994.0,
+            "power_peak_w": 44.76,
+            "power_avg_w": 25.96125,
+            "temp_peak_c": 59.0
+          }
+        },
+        {
+          "model": "qwen3:4b-fp16",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 232.53810000005615,
+          "ttfv_ms": 232.53830000066955,
+          "wall_total_ms": 2581.821300000229,
+          "load_ms": 151.7076,
+          "total_ms": 2564.5139,
+          "prompt_eval_ms": 61.375,
+          "eval_ms": 2348.083,
+          "prompt_tokens": 31,
+          "output_tokens": 39,
+          "gen_tps": 16.609293623777354,
+          "prompt_tps": 505.09164969450103,
+          "response_text": "A KV cache in transformer LLM inference is a mechanism that stores the key and value components of previously processed tokens to efficiently reuse them during the decoding process, reducing computational overhead and memory usage.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 9,
+            "util_peak": 43.0,
+            "util_avg": 26.11111111111111,
+            "vram_used_peak_mb": 5994.0,
+            "power_peak_w": 22.7,
+            "power_avg_w": 20.74,
+            "temp_peak_c": 60.0
+          }
+        },
+        {
+          "model": "qwen3:4b-fp16",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 247.53119999968476,
+          "ttfv_ms": 247.53139999938867,
+          "wall_total_ms": 2754.4894000002387,
+          "load_ms": 155.0114,
+          "total_ms": 2727.8656,
+          "prompt_eval_ms": 64.382,
+          "eval_ms": 2505.564,
+          "prompt_tokens": 31,
+          "output_tokens": 39,
+          "gen_tps": 15.565357739814269,
+          "prompt_tps": 481.5010406635395,
+          "response_text": "A KV cache in transformer LLM inference is a mechanism that stores the key and value components of previously processed tokens to efficiently reuse them during the decoding process, reducing computational overhead and memory usage.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 9,
+            "util_peak": 43.0,
+            "util_avg": 26.333333333333332,
+            "vram_used_peak_mb": 5994.0,
+            "power_peak_w": 21.3,
+            "power_avg_w": 19.77777777777778,
+            "temp_peak_c": 60.0
+          }
+        }
+      ],
+      "aggregate": {
+        "n_ok": 3,
+        "n_total": 3,
+        "gen_tps": {
+          "median": 16.609293623777354,
+          "min": 15.565357739814269,
+          "max": 18.16816453089799,
+          "stdev": 1.0695006013506405
+        },
+        "prompt_tps": {
+          "median": 505.09164969450103,
+          "min": 481.5010406635395,
+          "max": 532.8108349661408,
+          "stdev": 20.969727010225483
+        },
+        "ttft_ms": {
+          "median": 232.53810000005615,
+          "min": 219.5772000004581,
+          "max": 247.53119999968476,
+          "stdev": 11.422220509725806
+        },
+        "ttfv_ms": {
+          "median": 232.53830000066955,
+          "min": 219.57740000016202,
+          "max": 247.53139999938867,
+          "stdev": 11.422220509707827
+        },
+        "wall_total_ms": {
+          "median": 2581.821300000229,
+          "min": 2367.45719999999,
+          "max": 2754.4894000002387,
+          "stdev": 158.31058221229367
+        },
+        "load_ms": {
+          "median": 155.0114,
+          "min": 151.7076,
+          "max": 156.0887,
+          "stdev": 1.8639774360818293
+        },
+        "eval_ms": {
+          "median": 2348.083,
+          "min": 2146.612,
+          "max": 2505.564,
+          "stdev": 146.90789537287935
+        },
+        "prompt_eval_ms": {
+          "median": 61.375,
+          "min": 58.182,
+          "max": 64.382,
+          "stdev": 2.5315190433150354
+        },
+        "output_tokens": {
+          "median": 39,
+          "min": 39,
+          "max": 39,
+          "stdev": 0.0
+        },
+        "prompt_tokens": {
+          "median": 31,
+          "min": 31,
+          "max": 31,
+          "stdev": 0.0
+        }
+      }
+    },
+    {
+      "label": "qwen3:4b-fp16 \u00b7 reasoning",
+      "model": "qwen3:4b-fp16",
+      "context_length": null,
+      "prompt_key": "reasoning",
+      "prompt_note": "Medium prompt, structured reasoning \u2014 representative interactive task.",
+      "prompt_text": "Explain, step by step and concisely, how quantizing an LLM from FP16 to INT4 affects (1) memory footprint, (2) inference throughput, and (3) output quality. Keep it under 200 words.",
+      "attachments": {
+        "files": [],
+        "images": [],
+        "assembled_chars": 181,
+        "assembled_approx_tokens": 45
+      },
+      "residency": "36%/64% CPU/GPU",
+      "cold_start": {
+        "model": "qwen3:4b-fp16",
+        "ok": true,
+        "error": null,
+        "ttft_ms": 4799.671099999614,
+        "ttfv_ms": 4799.671200000375,
+        "wall_total_ms": 14423.498299999665,
+        "load_ms": 4580.9242,
+        "total_ms": 14395.0562,
+        "prompt_eval_ms": 188.906,
+        "eval_ms": 9622.178,
+        "prompt_tokens": 69,
+        "output_tokens": 178,
+        "gen_tps": 18.498930283767354,
+        "prompt_tps": 365.2610292949933,
+        "response_text": "Quantizing an LLM from FP16 to INT4 affects three key aspects:\n\n1. **Memory Footprint**: INT4 reduces the precision of weights from 16 bits to 4 bits, significantly lowering the memory usage. This allows the model to run on devices with limited RAM, such as GPUs with lower VRAM.\n\n2. **Inference Throughput**: INT4 quantization typically increases inference speed because lower precision arithmetic is faster. This leads to higher throughput, meaning more tokens can be processed per second.\n\n3. **Output Quality**: INT4 can introduce quantization errors, which may slightly reduce output quality. However, modern quantization techniques (like dynamic or mixed precision) minimize this impact, preserving much of the original performance.\n\nIn summary, INT4 reduces memory and boosts speed but may slightly lower quality, making it suitable for deployment on resource-constrained systems.",
+        "thinking_chars": 0,
+        "approximate_tokens": false,
+        "stream_chunks": null,
+        "gpu": {
+          "available": true,
+          "samples": 48,
+          "util_peak": 93.0,
+          "util_avg": 28.395833333333332,
+          "vram_used_peak_mb": 5994.0,
+          "power_peak_w": 44.23,
+          "power_avg_w": 25.289583333333336,
+          "temp_peak_c": 64.0
+        }
+      },
+      "runs": [
+        {
+          "model": "qwen3:4b-fp16",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 236.16490000040358,
+          "ttfv_ms": 236.1651000001075,
+          "wall_total_ms": 10371.729100000266,
+          "load_ms": 154.3463,
+          "total_ms": 10352.5875,
+          "prompt_eval_ms": 60.28,
+          "eval_ms": 10133.884,
+          "prompt_tokens": 69,
+          "output_tokens": 178,
+          "gen_tps": 17.56483496357369,
+          "prompt_tps": 1144.6582614465826,
+          "response_text": "Quantizing an LLM from FP16 to INT4 affects three key aspects:\n\n1. **Memory Footprint**: INT4 reduces the precision of weights from 16 bits to 4 bits, significantly lowering the memory usage. This allows the model to run on devices with limited RAM, such as GPUs with lower VRAM.\n\n2. **Inference Throughput**: INT4 quantization typically increases inference speed because lower precision arithmetic is faster. This leads to higher throughput, meaning more tokens can be processed per second.\n\n3. **Output Quality**: INT4 can introduce quantization errors, which may slightly reduce output quality. However, modern quantization techniques (like dynamic or mixed precision) minimize this impact, preserving much of the original performance.\n\nIn summary, INT4 reduces memory and boosts speed but may slightly lower quality, making it suitable for deployment on resource-constrained systems.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 34,
+            "util_peak": 42.0,
+            "util_avg": 37.3235294117647,
+            "vram_used_peak_mb": 5994.0,
+            "power_peak_w": 42.74,
+            "power_avg_w": 40.77676470588236,
+            "temp_peak_c": 68.0
+          }
+        },
+        {
+          "model": "qwen3:4b-fp16",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 234.9063000001479,
+          "ttfv_ms": 234.9066999995557,
+          "wall_total_ms": 10355.955699999868,
+          "load_ms": 146.3397,
+          "total_ms": 10330.13,
+          "prompt_eval_ms": 61.45,
+          "eval_ms": 10119.97,
+          "prompt_tokens": 69,
+          "output_tokens": 178,
+          "gen_tps": 17.588984947583835,
+          "prompt_tps": 1122.8641171684296,
+          "response_text": "Quantizing an LLM from FP16 to INT4 affects three key aspects:\n\n1. **Memory Footprint**: INT4 reduces the precision of weights from 16 bits to 4 bits, significantly lowering the memory usage. This allows the model to run on devices with limited RAM, such as GPUs with lower VRAM.\n\n2. **Inference Throughput**: INT4 quantization typically increases inference speed because lower precision arithmetic is faster. This leads to higher throughput, meaning more tokens can be processed per second.\n\n3. **Output Quality**: INT4 can introduce quantization errors, which may slightly reduce output quality. However, modern quantization techniques (like dynamic or mixed precision) minimize this impact, preserving much of the original performance.\n\nIn summary, INT4 reduces memory and boosts speed but may slightly lower quality, making it suitable for deployment on resource-constrained systems.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 34,
+            "util_peak": 42.0,
+            "util_avg": 35.14705882352941,
+            "vram_used_peak_mb": 5994.0,
+            "power_peak_w": 41.9,
+            "power_avg_w": 40.61735294117647,
+            "temp_peak_c": 68.0
+          }
+        },
+        {
+          "model": "qwen3:4b-fp16",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 222.50549999989744,
+          "ttfv_ms": 222.50570000051084,
+          "wall_total_ms": 10373.34970000029,
+          "load_ms": 146.9087,
+          "total_ms": 10360.2012,
+          "prompt_eval_ms": 60.525,
+          "eval_ms": 10149.512,
+          "prompt_tokens": 69,
+          "output_tokens": 178,
+          "gen_tps": 17.537789008969103,
+          "prompt_tps": 1140.0247831474596,
+          "response_text": "Quantizing an LLM from FP16 to INT4 affects three key aspects:\n\n1. **Memory Footprint**: INT4 reduces the precision of weights from 16 bits to 4 bits, significantly lowering the memory usage. This allows the model to run on devices with limited RAM, such as GPUs with lower VRAM.\n\n2. **Inference Throughput**: INT4 quantization typically increases inference speed because lower precision arithmetic is faster. This leads to higher throughput, meaning more tokens can be processed per second.\n\n3. **Output Quality**: INT4 can introduce quantization errors, which may slightly reduce output quality. However, modern quantization techniques (like dynamic or mixed precision) minimize this impact, preserving much of the original performance.\n\nIn summary, INT4 reduces memory and boosts speed but may slightly lower quality, making it suitable for deployment on resource-constrained systems.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 34,
+            "util_peak": 42.0,
+            "util_avg": 32.44117647058823,
+            "vram_used_peak_mb": 5994.0,
+            "power_peak_w": 42.01,
+            "power_avg_w": 40.46088235294118,
+            "temp_peak_c": 68.0
+          }
+        }
+      ],
+      "aggregate": {
+        "n_ok": 3,
+        "n_total": 3,
+        "gen_tps": {
+          "median": 17.56483496357369,
+          "min": 17.537789008969103,
+          "max": 17.588984947583835,
+          "stdev": 0.02091179762400781
+        },
+        "prompt_tps": {
+          "median": 1140.0247831474596,
+          "min": 1122.8641171684296,
+          "max": 1144.6582614465826,
+          "stdev": 9.374565488059407
+        },
+        "ttft_ms": {
+          "median": 234.9063000001479,
+          "min": 222.50549999989744,
+          "max": 236.16490000040358,
+          "stdev": 6.163901388827285
+        },
+        "ttfv_ms": {
+          "median": 234.9066999995557,
+          "min": 222.50570000051084,
+          "max": 236.1651000001075,
+          "stdev": 6.163941559015991
+        },
+        "wall_total_ms": {
+          "median": 10371.729100000266,
+          "min": 10355.955699999868,
+          "max": 10373.34970000029,
+          "stdev": 7.845577154233915
+        },
+        "load_ms": {
+          "median": 146.9087,
+          "min": 146.3397,
+          "max": 154.3463,
+          "stdev": 3.647636956837801
+        },
+        "eval_ms": {
+          "median": 10133.884,
+          "min": 10119.97,
+          "max": 10149.512,
+          "stdev": 12.067235456208193
+        },
+        "prompt_eval_ms": {
+          "median": 60.525,
+          "min": 60.28,
+          "max": 61.45,
+          "stdev": 0.5038242638945549
+        },
+        "output_tokens": {
+          "median": 178,
+          "min": 178,
+          "max": 178,
+          "stdev": 0.0
+        },
+        "prompt_tokens": {
+          "median": 69,
+          "min": 69,
+          "max": 69,
+          "stdev": 0.0
+        }
+      }
+    },
+    {
+      "label": "qwen3:4b-fp16 \u00b7 prefill_stress",
+      "model": "qwen3:4b-fp16",
+      "context_length": null,
+      "prompt_key": "prefill_stress",
+      "prompt_note": "Long prefill (~400 tokens of context) \u2014 stresses prompt-processing / prefill throughput and exercises KV-cache growth.",
+      "prompt_text": "You are reviewing the following notes before answering.\n\nLocal AI inference on client hardware is bounded by several distinct resources, and confusing them is a common mistake. Model weights occupy memory proportional to parameter count and precision: a 7-billion-parameter model at FP16 needs roughly 14 GB just for weights, while the same model quantized to 4-bit needs closer to 4 GB. But weights are only one consumer of memory. The KV cache grows with both context length and batch size, and at long context it can rival or exceed the size of the weights themselves. Activations and workspace scratch memory add further overhead. On a discrete GPU with a fixed VRAM budget, exceeding capacity forces the runtime to offload layers to system RAM, and the resulting transfers across the PCIe bus dominate latency, collapsing throughput. On a unified-memory system the CPU and GPU share one pool, so there is no discrete-VRAM ceiling in the same sense, but total system memory and memory bandwidth still bound what is practical. Separately, compute throughput \u2014 how fast the accelerator performs the matrix multiplications that dominate attention and the feed-forward layers \u2014 determines the ceiling on tokens per second once everything is resident. Memory capacity and compute throughput are therefore independent constraints: a workload can be memory-bound, compute-bound, or bandwidth-bound, and the bottleneck can shift as context length grows. Quantization primarily relieves the memory-capacity constraint and can improve throughput by reducing the bytes moved per operation, at some risk to output quality. Time to first token is dominated by model load plus prompt prefill, while steady-state tokens per second reflects decode speed; these are different metrics and a system can be strong at one and weak at the other.\n\nBased only on the notes above, answer in three sentences: why can a model that fits in a GPU's VRAM still run slowly as the conversation gets longer?",
+      "attachments": {
+        "files": [],
+        "images": [],
+        "assembled_chars": 1978,
+        "assembled_approx_tokens": 494
+      },
+      "residency": "36%/64% CPU/GPU",
+      "cold_start": {
+        "model": "qwen3:4b-fp16",
+        "ok": true,
+        "error": null,
+        "ttft_ms": 4546.861400000125,
+        "ttfv_ms": 4546.861499999977,
+        "wall_total_ms": 9704.429499999605,
+        "load_ms": 4313.2051,
+        "total_ms": 9701.044,
+        "prompt_eval_ms": 227.861,
+        "eval_ms": 5155.758,
+        "prompt_tokens": 393,
+        "output_tokens": 95,
+        "gen_tps": 18.42600059971783,
+        "prompt_tps": 1724.7356941293156,
+        "response_text": "A model that fits in a GPU's VRAM can still run slowly as the conversation gets longer because the KV cache grows with context length and can rival or exceed the size of the model weights, consuming significant memory. Even with sufficient VRAM, the increased memory usage can lead to higher latency due to memory bandwidth limitations and the need for more computations. Additionally, as context length increases, the model may become compute-bound, limiting how many tokens it can process per second.",
+        "thinking_chars": 0,
+        "approximate_tokens": false,
+        "stream_chunks": null,
+        "gpu": {
+          "available": true,
+          "samples": 32,
+          "util_peak": 42.0,
+          "util_avg": 18.28125,
+          "vram_used_peak_mb": 6000.0,
+          "power_peak_w": 44.51,
+          "power_avg_w": 30.005,
+          "temp_peak_c": 66.0
+        }
+      },
+      "runs": [
+        {
+          "model": "qwen3:4b-fp16",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 223.7436000004891,
+          "ttfv_ms": 223.74399999989691,
+          "wall_total_ms": 5630.20730000062,
+          "load_ms": 147.6319,
+          "total_ms": 5616.0748,
+          "prompt_eval_ms": 59.586,
+          "eval_ms": 5404.042,
+          "prompt_tokens": 393,
+          "output_tokens": 95,
+          "gen_tps": 17.57943406065312,
+          "prompt_tps": 6595.50901218407,
+          "response_text": "A model that fits in a GPU's VRAM can still run slowly as the conversation gets longer because the KV cache grows with context length and can rival or exceed the size of the model weights, consuming significant memory. Even with sufficient VRAM, the increased memory usage can lead to higher latency due to memory bandwidth limitations and the need for more computations. Additionally, as context length increases, the model may become compute-bound, limiting how many tokens it can process per second.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 19,
+            "util_peak": 42.0,
+            "util_avg": 32.05263157894737,
+            "vram_used_peak_mb": 6000.0,
+            "power_peak_w": 42.58,
+            "power_avg_w": 40.40684210526316,
+            "temp_peak_c": 67.0
+          }
+        },
+        {
+          "model": "qwen3:4b-fp16",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 228.11470000033296,
+          "ttfv_ms": 228.11499999988882,
+          "wall_total_ms": 5612.562600000274,
+          "load_ms": 147.8131,
+          "total_ms": 5599.299,
+          "prompt_eval_ms": 64.111,
+          "eval_ms": 5382.226,
+          "prompt_tokens": 393,
+          "output_tokens": 95,
+          "gen_tps": 17.650689510250963,
+          "prompt_tps": 6129.9932928826565,
+          "response_text": "A model that fits in a GPU's VRAM can still run slowly as the conversation gets longer because the KV cache grows with context length and can rival or exceed the size of the model weights, consuming significant memory. Even with sufficient VRAM, the increased memory usage can lead to higher latency due to memory bandwidth limitations and the need for more computations. Additionally, as context length increases, the model may become compute-bound, limiting how many tokens it can process per second.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 19,
+            "util_peak": 42.0,
+            "util_avg": 33.94736842105263,
+            "vram_used_peak_mb": 6000.0,
+            "power_peak_w": 41.92,
+            "power_avg_w": 40.253684210526316,
+            "temp_peak_c": 68.0
+          }
+        },
+        {
+          "model": "qwen3:4b-fp16",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 216.80780000042432,
+          "ttfv_ms": 216.80800000012823,
+          "wall_total_ms": 5698.089299999992,
+          "load_ms": 149.9272,
+          "total_ms": 5695.0347,
+          "prompt_eval_ms": 62.212,
+          "eval_ms": 5478.959,
+          "prompt_tokens": 393,
+          "output_tokens": 95,
+          "gen_tps": 17.339060211985526,
+          "prompt_tps": 6317.10923937504,
+          "response_text": "A model that fits in a GPU's VRAM can still run slowly as the conversation gets longer because the KV cache grows with context length and can rival or exceed the size of the model weights, consuming significant memory. Even with sufficient VRAM, the increased memory usage can lead to higher latency due to memory bandwidth limitations and the need for more computations. Additionally, as context length increases, the model may become compute-bound, limiting how many tokens it can process per second.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 19,
+            "util_peak": 42.0,
+            "util_avg": 34.26315789473684,
+            "vram_used_peak_mb": 6000.0,
+            "power_peak_w": 42.12,
+            "power_avg_w": 40.45263157894737,
+            "temp_peak_c": 68.0
+          }
+        }
+      ],
+      "aggregate": {
+        "n_ok": 3,
+        "n_total": 3,
+        "gen_tps": {
+          "median": 17.57943406065312,
+          "min": 17.339060211985526,
+          "max": 17.650689510250963,
+          "stdev": 0.1333207268032291
+        },
+        "prompt_tps": {
+          "median": 6317.10923937504,
+          "min": 6129.9932928826565,
+          "max": 6595.50901218407,
+          "stdev": 191.26006025786316
+        },
+        "ttft_ms": {
+          "median": 223.7436000004891,
+          "min": 216.80780000042432,
+          "max": 228.11470000033296,
+          "stdev": 4.655436779335026
+        },
+        "ttfv_ms": {
+          "median": 223.74399999989691,
+          "min": 216.80800000012823,
+          "max": 228.11499999988882,
+          "stdev": 4.655486440645494
+        },
+        "wall_total_ms": {
+          "median": 5630.20730000062,
+          "min": 5612.562600000274,
+          "max": 5698.089299999992,
+          "stdev": 36.869315418498836
+        },
+        "load_ms": {
+          "median": 147.8131,
+          "min": 147.6319,
+          "max": 149.9272,
+          "stdev": 1.0419348636071268
+        },
+        "eval_ms": {
+          "median": 5404.042,
+          "min": 5382.226,
+          "max": 5478.959,
+          "stdev": 41.42700143894342
+        },
+        "prompt_eval_ms": {
+          "median": 62.212,
+          "min": 59.586,
+          "max": 64.111,
+          "stdev": 1.8552538610359763
+        },
+        "output_tokens": {
+          "median": 95,
+          "min": 95,
+          "max": 95,
+          "stdev": 0.0
+        },
+        "prompt_tokens": {
+          "median": 393,
+          "min": 393,
+          "max": 393,
+          "stdev": 0.0
+        }
+      }
+    }
+  ]
+}

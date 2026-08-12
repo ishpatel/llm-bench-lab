@@ -64,6 +64,9 @@ lifecycle, and the reasoning behind each module) see **[ARCHITECTURE.md](ARCHITE
 To reproduce the experiments (five hypotheses, exact commands, and what would
 falsify each) see **[TESTPLAN.md](TESTPLAN.md)**.
 
+The raw output from the completed campaign is frozen in **[sample-results/](sample-results/)**, so every number in this README can be
+checked against the data that produced it.
+
 An LLM's tokens/sec is only one number. This harness treats local inference as
 a *system-level experience* question: memory capacity and compute throughput
 are independent constraints, quantization trades quality for footprint and
@@ -236,15 +239,30 @@ python bench.py run configs/mac.json --label "RTX 5070 (8GB)"
 python bench.py report results/cross-system_*.json --out results/cross.html
 ```
 
-**Hypothesis (not yet measured).** On the 8 GB RTX laptop, `gemma3:12b`
-(~8.1 GB) and `qwen3:4b-fp16` (~8.1 GB) should expose the VRAM boundary, while
-both fit comfortably in the M3 Max's unified memory. The test is whether
-residency actually changes from `100% GPU` to a CPU/GPU split, and if so, how
-much throughput that costs. `qwen3:4b-q4_K_M` (~2.6 GB) serves as the
-fits-comfortably control.
+**Measured result.** The pre-registered hypothesis was supported. Two ~8.1 GB
+configurations crossed the 8 GB boundary on the RTX laptop and spilled across
+CPU/GPU memory, while both stayed fully resident in the M3 Max's 48 GB unified
+pool:
 
-The result is recorded once measured, whichever way it comes out. Writing the
-conclusion before running the experiment is how benchmarks become marketing.
+| Model | RTX 5070 (8 GB) | M3 Max (48 GB) |
+|---|---|---|
+| gemma3:12b-it-q4_K_M | 17.9 tok/s, 41%/59% CPU/GPU | 39.9 tok/s, fully resident |
+| qwen3:4b-fp16 | 19.5 tok/s, 36%/64% CPU/GPU | 43.2 tok/s, fully resident |
+
+Roughly 55% lower decode throughput once spilled. Models that fit are far closer:
+qwen3:4b-q4 measured 97.5 vs 102 tok/s, and on one reasoning case the RTX at Q8
+edged the Mac. The product-level reading is that when a workload fits, these two
+very different clients deliver broadly similar interactive decode performance;
+once the discrete-memory boundary is crossed, the experience changes sharply.
+
+A further result: context capacity alone moves that boundary. qwen3:8b-q4_K_M is
+only 5.2 GB and stayed resident at 4K and 8K, then spilled at 16K and 32K on the
+RTX without a single weight changing.
+
+Because the platforms differ in accelerator, memory architecture, runtime, OS and
+power behaviour, treat this as a system-level client comparison rather than an
+isolated GPU benchmark. [TESTPLAN.md](TESTPLAN.md) is kept unchanged as the
+pre-registration record of what was predicted before the data existed.
 
 ## Reference files, documents & images (task-based benchmarking)
 

@@ -1,0 +1,716 @@
+{
+  "meta": {
+    "config_name": "context-scaling",
+    "system": {
+      "os": "Windows",
+      "os_version": "11",
+      "machine": "AMD64",
+      "python": "3.14.7",
+      "accelerator": "nvidia-cuda",
+      "gpu": "NVIDIA GeForce RTX 5070 Laptop GPU",
+      "vram_mb": "8151",
+      "driver": "610.88",
+      "label": "RTX 5070 (8GB)"
+    },
+    "options": {
+      "temperature": 0,
+      "num_predict": 256,
+      "think": false
+    },
+    "runs": 3,
+    "warmup": 1,
+    "measure_cold_start": false,
+    "engine": "Ollama",
+    "ollama_version": "ollama version is 0.32.9"
+  },
+  "cells": [
+    {
+      "label": "qwen3:8b-q4_K_M ctx=4096 \u00b7 prefill_stress",
+      "model": "qwen3:8b-q4_K_M",
+      "context_length": 4096,
+      "prompt_key": "prefill_stress",
+      "prompt_note": "Long prefill (~400 tokens of context) \u2014 stresses prompt-processing / prefill throughput and exercises KV-cache growth.",
+      "prompt_text": "You are reviewing the following notes before answering.\n\nLocal AI inference on client hardware is bounded by several distinct resources, and confusing them is a common mistake. Model weights occupy memory proportional to parameter count and precision: a 7-billion-parameter model at FP16 needs roughly 14 GB just for weights, while the same model quantized to 4-bit needs closer to 4 GB. But weights are only one consumer of memory. The KV cache grows with both context length and batch size, and at long context it can rival or exceed the size of the weights themselves. Activations and workspace scratch memory add further overhead. On a discrete GPU with a fixed VRAM budget, exceeding capacity forces the runtime to offload layers to system RAM, and the resulting transfers across the PCIe bus dominate latency, collapsing throughput. On a unified-memory system the CPU and GPU share one pool, so there is no discrete-VRAM ceiling in the same sense, but total system memory and memory bandwidth still bound what is practical. Separately, compute throughput \u2014 how fast the accelerator performs the matrix multiplications that dominate attention and the feed-forward layers \u2014 determines the ceiling on tokens per second once everything is resident. Memory capacity and compute throughput are therefore independent constraints: a workload can be memory-bound, compute-bound, or bandwidth-bound, and the bottleneck can shift as context length grows. Quantization primarily relieves the memory-capacity constraint and can improve throughput by reducing the bytes moved per operation, at some risk to output quality. Time to first token is dominated by model load plus prompt prefill, while steady-state tokens per second reflects decode speed; these are different metrics and a system can be strong at one and weak at the other.\n\nBased only on the notes above, answer in three sentences: why can a model that fits in a GPU's VRAM still run slowly as the conversation gets longer?",
+      "attachments": {
+        "files": [],
+        "images": [],
+        "assembled_chars": 1978,
+        "assembled_approx_tokens": 494
+      },
+      "residency": "100% GPU",
+      "cold_start": null,
+      "runs": [
+        {
+          "model": "qwen3:8b-q4_K_M",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 144.01080000061484,
+          "ttfv_ms": 144.01120000002265,
+          "wall_total_ms": 1635.07540000046,
+          "load_ms": 101.8068,
+          "total_ms": 1609.765,
+          "prompt_eval_ms": 15.215,
+          "eval_ms": 1489.123,
+          "prompt_tokens": 393,
+          "output_tokens": 103,
+          "gen_tps": 69.168228547944,
+          "prompt_tps": 25829.77325008216,
+          "response_text": "As the conversation grows longer, the key-value (KV) cache, which stores intermediate results for attention mechanisms, expands in size, potentially rivaling or exceeding the memory used by the model weights. This increased memory demand can lead to memory-bound performance, where the GPU's VRAM becomes saturated, forcing offloading to system memory and increasing latency due to PCIe transfers. Additionally, as context length increases, the compute throughput may become a limiting factor, as the GPU struggles to process the growing number of tokens efficiently.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 6,
+            "util_peak": 98.0,
+            "util_avg": 97.5,
+            "vram_used_peak_mb": 5468.0,
+            "power_peak_w": 125.08,
+            "power_avg_w": 115.24000000000001,
+            "temp_peak_c": 65.0
+          }
+        },
+        {
+          "model": "qwen3:8b-q4_K_M",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 113.49989999962418,
+          "ttfv_ms": 113.50000000038563,
+          "wall_total_ms": 1621.9952999999805,
+          "load_ms": 91.158,
+          "total_ms": 1619.6551,
+          "prompt_eval_ms": 16.075,
+          "eval_ms": 1506.711,
+          "prompt_tokens": 393,
+          "output_tokens": 103,
+          "gen_tps": 68.36082035639217,
+          "prompt_tps": 24447.900466562987,
+          "response_text": "As the conversation grows longer, the key-value (KV) cache, which stores intermediate results for attention mechanisms, expands in size, potentially rivaling or exceeding the memory used by the model weights. This increased memory demand can lead to memory-bound performance, where the GPU's VRAM becomes saturated, forcing offloading to system memory and increasing latency due to PCIe transfers. Additionally, as context length increases, the compute throughput may become a limiting factor, as the GPU struggles to process the growing number of tokens efficiently.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 6,
+            "util_peak": 98.0,
+            "util_avg": 78.66666666666667,
+            "vram_used_peak_mb": 5468.0,
+            "power_peak_w": 118.62,
+            "power_avg_w": 106.40166666666666,
+            "temp_peak_c": 65.0
+          }
+        },
+        {
+          "model": "qwen3:8b-q4_K_M",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 137.23029999982828,
+          "ttfv_ms": 137.23049999953219,
+          "wall_total_ms": 1662.9350000002887,
+          "load_ms": 85.6339,
+          "total_ms": 1634.8827,
+          "prompt_eval_ms": 15.068,
+          "eval_ms": 1523.79,
+          "prompt_tokens": 393,
+          "output_tokens": 103,
+          "gen_tps": 67.59461605601822,
+          "prompt_tps": 26081.76267586939,
+          "response_text": "As the conversation grows longer, the key-value (KV) cache, which stores intermediate results for attention mechanisms, expands in size, potentially rivaling or exceeding the memory used by the model weights. This increased memory demand can lead to memory-bound performance, where the GPU's VRAM becomes saturated, forcing offloading to system memory and increasing latency due to PCIe transfers. Additionally, as context length increases, the compute throughput may become a limiting factor, as the GPU struggles to process the growing number of tokens efficiently.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 6,
+            "util_peak": 97.0,
+            "util_avg": 93.83333333333333,
+            "vram_used_peak_mb": 5468.0,
+            "power_peak_w": 110.34,
+            "power_avg_w": 104.18666666666667,
+            "temp_peak_c": 66.0
+          }
+        }
+      ],
+      "aggregate": {
+        "n_ok": 3,
+        "n_total": 3,
+        "gen_tps": {
+          "median": 68.36082035639217,
+          "min": 67.59461605601822,
+          "max": 69.168228547944,
+          "stdev": 0.6424980149075564
+        },
+        "prompt_tps": {
+          "median": 25829.77325008216,
+          "min": 24447.900466562987,
+          "max": 26081.76267586939,
+          "stdev": 718.2213199239111
+        },
+        "ttft_ms": {
+          "median": 137.23029999982828,
+          "min": 113.49989999962418,
+          "max": 144.01080000061484,
+          "stdev": 13.081038368998103
+        },
+        "ttfv_ms": {
+          "median": 137.23049999953219,
+          "min": 113.50000000038563,
+          "max": 144.01120000002265,
+          "stdev": 13.081147792504028
+        },
+        "wall_total_ms": {
+          "median": 1635.07540000046,
+          "min": 1621.9952999999805,
+          "max": 1662.9350000002887,
+          "stdev": 17.07273773622158
+        },
+        "load_ms": {
+          "median": 91.158,
+          "min": 85.6339,
+          "max": 101.8068,
+          "stdev": 6.712139223989786
+        },
+        "eval_ms": {
+          "median": 1506.711,
+          "min": 1489.123,
+          "max": 1523.79,
+          "stdev": 14.153251978098695
+        },
+        "prompt_eval_ms": {
+          "median": 15.215,
+          "min": 15.068,
+          "max": 16.075,
+          "stdev": 0.444129360534618
+        },
+        "output_tokens": {
+          "median": 103,
+          "min": 103,
+          "max": 103,
+          "stdev": 0.0
+        },
+        "prompt_tokens": {
+          "median": 393,
+          "min": 393,
+          "max": 393,
+          "stdev": 0.0
+        }
+      }
+    },
+    {
+      "label": "qwen3:8b-q4_K_M ctx=8192 \u00b7 prefill_stress",
+      "model": "qwen3:8b-q4_K_M",
+      "context_length": 8192,
+      "prompt_key": "prefill_stress",
+      "prompt_note": "Long prefill (~400 tokens of context) \u2014 stresses prompt-processing / prefill throughput and exercises KV-cache growth.",
+      "prompt_text": "You are reviewing the following notes before answering.\n\nLocal AI inference on client hardware is bounded by several distinct resources, and confusing them is a common mistake. Model weights occupy memory proportional to parameter count and precision: a 7-billion-parameter model at FP16 needs roughly 14 GB just for weights, while the same model quantized to 4-bit needs closer to 4 GB. But weights are only one consumer of memory. The KV cache grows with both context length and batch size, and at long context it can rival or exceed the size of the weights themselves. Activations and workspace scratch memory add further overhead. On a discrete GPU with a fixed VRAM budget, exceeding capacity forces the runtime to offload layers to system RAM, and the resulting transfers across the PCIe bus dominate latency, collapsing throughput. On a unified-memory system the CPU and GPU share one pool, so there is no discrete-VRAM ceiling in the same sense, but total system memory and memory bandwidth still bound what is practical. Separately, compute throughput \u2014 how fast the accelerator performs the matrix multiplications that dominate attention and the feed-forward layers \u2014 determines the ceiling on tokens per second once everything is resident. Memory capacity and compute throughput are therefore independent constraints: a workload can be memory-bound, compute-bound, or bandwidth-bound, and the bottleneck can shift as context length grows. Quantization primarily relieves the memory-capacity constraint and can improve throughput by reducing the bytes moved per operation, at some risk to output quality. Time to first token is dominated by model load plus prompt prefill, while steady-state tokens per second reflects decode speed; these are different metrics and a system can be strong at one and weak at the other.\n\nBased only on the notes above, answer in three sentences: why can a model that fits in a GPU's VRAM still run slowly as the conversation gets longer?",
+      "attachments": {
+        "files": [],
+        "images": [],
+        "assembled_chars": 1978,
+        "assembled_approx_tokens": 494
+      },
+      "residency": "100% GPU",
+      "cold_start": null,
+      "runs": [
+        {
+          "model": "qwen3:8b-q4_K_M",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 151.11140000044543,
+          "ttfv_ms": 151.11160000014934,
+          "wall_total_ms": 1637.7706000002945,
+          "load_ms": 101.9462,
+          "total_ms": 1610.5741,
+          "prompt_eval_ms": 15.222,
+          "eval_ms": 1484.891,
+          "prompt_tokens": 393,
+          "output_tokens": 103,
+          "gen_tps": 69.36536082446456,
+          "prompt_tps": 25817.89515175404,
+          "response_text": "As the conversation grows longer, the key-value (KV) cache, which stores intermediate results for attention mechanisms, expands in size, potentially rivaling or exceeding the memory used by the model weights. This increased memory demand can lead to memory-bound performance, where the GPU's VRAM becomes saturated, forcing offloading to system memory and increasing latency due to PCIe transfers. Additionally, as context length increases, the compute throughput may become a limiting factor, as the GPU struggles to process the growing number of tokens efficiently.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 6,
+            "util_peak": 97.0,
+            "util_avg": 97.0,
+            "vram_used_peak_mb": 6048.0,
+            "power_peak_w": 121.87,
+            "power_avg_w": 116.88833333333334,
+            "temp_peak_c": 67.0
+          }
+        },
+        {
+          "model": "qwen3:8b-q4_K_M",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 126.24869999945076,
+          "ttfv_ms": 126.24890000006417,
+          "wall_total_ms": 1636.9005999995352,
+          "load_ms": 94.7699,
+          "total_ms": 1622.0707,
+          "prompt_eval_ms": 15.087,
+          "eval_ms": 1508.834,
+          "prompt_tokens": 393,
+          "output_tokens": 103,
+          "gen_tps": 68.26463348519452,
+          "prompt_tps": 26048.916285543844,
+          "response_text": "As the conversation grows longer, the key-value (KV) cache, which stores intermediate results for attention mechanisms, expands in size, potentially rivaling or exceeding the memory used by the model weights. This increased memory demand can lead to memory-bound performance, where the GPU's VRAM becomes saturated, forcing offloading to system memory and increasing latency due to PCIe transfers. Additionally, as context length increases, the compute throughput may become a limiting factor, as the GPU struggles to process the growing number of tokens efficiently.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 6,
+            "util_peak": 97.0,
+            "util_avg": 97.0,
+            "vram_used_peak_mb": 6048.0,
+            "power_peak_w": 121.1,
+            "power_avg_w": 109.295,
+            "temp_peak_c": 67.0
+          }
+        },
+        {
+          "model": "qwen3:8b-q4_K_M",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 136.1242000002676,
+          "ttfv_ms": 136.1243999999715,
+          "wall_total_ms": 1654.5080000005328,
+          "load_ms": 93.6606,
+          "total_ms": 1630.1031,
+          "prompt_eval_ms": 15.212,
+          "eval_ms": 1516.383,
+          "prompt_tokens": 393,
+          "output_tokens": 103,
+          "gen_tps": 67.92479208748713,
+          "prompt_tps": 25834.86721009729,
+          "response_text": "As the conversation grows longer, the key-value (KV) cache, which stores intermediate results for attention mechanisms, expands in size, potentially rivaling or exceeding the memory used by the model weights. This increased memory demand can lead to memory-bound performance, where the GPU's VRAM becomes saturated, forcing offloading to system memory and increasing latency due to PCIe transfers. Additionally, as context length increases, the compute throughput may become a limiting factor, as the GPU struggles to process the growing number of tokens efficiently.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 6,
+            "util_peak": 98.0,
+            "util_avg": 75.16666666666667,
+            "vram_used_peak_mb": 6048.0,
+            "power_peak_w": 100.0,
+            "power_avg_w": 80.50666666666667,
+            "temp_peak_c": 67.0
+          }
+        }
+      ],
+      "aggregate": {
+        "n_ok": 3,
+        "n_total": 3,
+        "gen_tps": {
+          "median": 68.26463348519452,
+          "min": 67.92479208748713,
+          "max": 69.36536082446456,
+          "stdev": 0.614846967136172
+        },
+        "prompt_tps": {
+          "median": 25834.86721009729,
+          "min": 25817.89515175404,
+          "max": 26048.916285543844,
+          "stdev": 105.13262614508369
+        },
+        "ttft_ms": {
+          "median": 136.1242000002676,
+          "min": 126.24869999945076,
+          "max": 151.11140000044543,
+          "stdev": 10.221412793471707
+        },
+        "ttfv_ms": {
+          "median": 136.1243999999715,
+          "min": 126.24890000006417,
+          "max": 151.11160000014934,
+          "stdev": 10.221412793128264
+        },
+        "wall_total_ms": {
+          "median": 1637.7706000002945,
+          "min": 1636.9005999995352,
+          "max": 1654.5080000005328,
+          "stdev": 8.102934952255996
+        },
+        "load_ms": {
+          "median": 94.7699,
+          "min": 93.6606,
+          "max": 101.9462,
+          "stdev": 3.6724347893764193
+        },
+        "eval_ms": {
+          "median": 1508.834,
+          "min": 1484.891,
+          "max": 1516.383,
+          "stdev": 13.424689998489916
+        },
+        "prompt_eval_ms": {
+          "median": 15.212,
+          "min": 15.087,
+          "max": 15.222,
+          "stdev": 0.06141841924229421
+        },
+        "output_tokens": {
+          "median": 103,
+          "min": 103,
+          "max": 103,
+          "stdev": 0.0
+        },
+        "prompt_tokens": {
+          "median": 393,
+          "min": 393,
+          "max": 393,
+          "stdev": 0.0
+        }
+      }
+    },
+    {
+      "label": "qwen3:8b-q4_K_M ctx=16384 \u00b7 prefill_stress",
+      "model": "qwen3:8b-q4_K_M",
+      "context_length": 16384,
+      "prompt_key": "prefill_stress",
+      "prompt_note": "Long prefill (~400 tokens of context) \u2014 stresses prompt-processing / prefill throughput and exercises KV-cache growth.",
+      "prompt_text": "You are reviewing the following notes before answering.\n\nLocal AI inference on client hardware is bounded by several distinct resources, and confusing them is a common mistake. Model weights occupy memory proportional to parameter count and precision: a 7-billion-parameter model at FP16 needs roughly 14 GB just for weights, while the same model quantized to 4-bit needs closer to 4 GB. But weights are only one consumer of memory. The KV cache grows with both context length and batch size, and at long context it can rival or exceed the size of the weights themselves. Activations and workspace scratch memory add further overhead. On a discrete GPU with a fixed VRAM budget, exceeding capacity forces the runtime to offload layers to system RAM, and the resulting transfers across the PCIe bus dominate latency, collapsing throughput. On a unified-memory system the CPU and GPU share one pool, so there is no discrete-VRAM ceiling in the same sense, but total system memory and memory bandwidth still bound what is practical. Separately, compute throughput \u2014 how fast the accelerator performs the matrix multiplications that dominate attention and the feed-forward layers \u2014 determines the ceiling on tokens per second once everything is resident. Memory capacity and compute throughput are therefore independent constraints: a workload can be memory-bound, compute-bound, or bandwidth-bound, and the bottleneck can shift as context length grows. Quantization primarily relieves the memory-capacity constraint and can improve throughput by reducing the bytes moved per operation, at some risk to output quality. Time to first token is dominated by model load plus prompt prefill, while steady-state tokens per second reflects decode speed; these are different metrics and a system can be strong at one and weak at the other.\n\nBased only on the notes above, answer in three sentences: why can a model that fits in a GPU's VRAM still run slowly as the conversation gets longer?",
+      "attachments": {
+        "files": [],
+        "images": [],
+        "assembled_chars": 1978,
+        "assembled_approx_tokens": 494
+      },
+      "residency": "22%/78% CPU/GPU",
+      "cold_start": null,
+      "runs": [
+        {
+          "model": "qwen3:8b-q4_K_M",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 201.97060000009515,
+          "ttfv_ms": 201.9709000005605,
+          "wall_total_ms": 3023.366899999928,
+          "load_ms": 144.3539,
+          "total_ms": 2997.1564,
+          "prompt_eval_ms": 27.655,
+          "eval_ms": 2819.095,
+          "prompt_tokens": 393,
+          "output_tokens": 103,
+          "gen_tps": 36.536548076599054,
+          "prompt_tps": 14210.811788103418,
+          "response_text": "As the conversation grows longer, the key-value (KV) cache, which stores intermediate results for attention mechanisms, expands in size, potentially rivaling or exceeding the memory used by the model weights. This increased memory demand can lead to memory-bound performance, where the GPU's VRAM becomes saturated, forcing offloading to system memory and increasing latency due to PCIe transfers. Additionally, as context length increases, the compute throughput may become a limiting factor, as the accelerator struggles to process the growing number of tokens efficiently.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 10,
+            "util_peak": 49.0,
+            "util_avg": 45.3,
+            "vram_used_peak_mb": 5958.0,
+            "power_peak_w": 68.15,
+            "power_avg_w": 62.536,
+            "temp_peak_c": 66.0
+          }
+        },
+        {
+          "model": "qwen3:8b-q4_K_M",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 183.0669000000853,
+          "ttfv_ms": 183.0670999997892,
+          "wall_total_ms": 2984.096600000157,
+          "load_ms": 147.5151,
+          "total_ms": 2981.1104,
+          "prompt_eval_ms": 30.1,
+          "eval_ms": 2798.764,
+          "prompt_tokens": 393,
+          "output_tokens": 103,
+          "gen_tps": 36.80195972222024,
+          "prompt_tps": 13056.478405315615,
+          "response_text": "As the conversation grows longer, the key-value (KV) cache, which stores intermediate results for attention mechanisms, expands in size, potentially rivaling or exceeding the memory used by the model weights. This increased memory demand can lead to memory-bound performance, where the GPU's VRAM becomes saturated, forcing offloading to system memory and increasing latency due to PCIe transfers. Additionally, as context length increases, the compute throughput may become a limiting factor, as the accelerator struggles to process the growing number of tokens efficiently.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 10,
+            "util_peak": 48.0,
+            "util_avg": 43.9,
+            "vram_used_peak_mb": 5958.0,
+            "power_peak_w": 65.1,
+            "power_avg_w": 61.725,
+            "temp_peak_c": 68.0
+          }
+        },
+        {
+          "model": "qwen3:8b-q4_K_M",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 205.96170000044367,
+          "ttfv_ms": 205.96199999999953,
+          "wall_total_ms": 3047.164800000246,
+          "load_ms": 145.9295,
+          "total_ms": 3018.4447,
+          "prompt_eval_ms": 28.85,
+          "eval_ms": 2837.915,
+          "prompt_tokens": 393,
+          "output_tokens": 103,
+          "gen_tps": 36.29425123726398,
+          "prompt_tps": 13622.183708838822,
+          "response_text": "As the conversation grows longer, the key-value (KV) cache, which stores intermediate results for attention mechanisms, expands in size, potentially rivaling or exceeding the memory used by the model weights. This increased memory demand can lead to memory-bound performance, where the GPU's VRAM becomes saturated, forcing offloading to system memory and increasing latency due to PCIe transfers. Additionally, as context length increases, the compute throughput may become a limiting factor, as the accelerator struggles to process the growing number of tokens efficiently.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 10,
+            "util_peak": 50.0,
+            "util_avg": 47.2,
+            "vram_used_peak_mb": 5958.0,
+            "power_peak_w": 64.95,
+            "power_avg_w": 61.113,
+            "temp_peak_c": 70.0
+          }
+        }
+      ],
+      "aggregate": {
+        "n_ok": 3,
+        "n_total": 3,
+        "gen_tps": {
+          "median": 36.536548076599054,
+          "min": 36.29425123726398,
+          "max": 36.80195972222024,
+          "stdev": 0.20734271299246865
+        },
+        "prompt_tps": {
+          "median": 13622.183708838822,
+          "min": 13056.478405315615,
+          "max": 14210.811788103418,
+          "stdev": 471.28560163207294
+        },
+        "ttft_ms": {
+          "median": 201.97060000009515,
+          "min": 183.0669000000853,
+          "max": 205.96170000044367,
+          "stdev": 9.98582673347894
+        },
+        "ttfv_ms": {
+          "median": 201.9709000005605,
+          "min": 183.0670999997892,
+          "max": 205.96199999999953,
+          "stdev": 9.985873242259753
+        },
+        "wall_total_ms": {
+          "median": 3023.366899999928,
+          "min": 2984.096600000157,
+          "max": 3047.164800000246,
+          "stdev": 26.004474738330764
+        },
+        "load_ms": {
+          "median": 145.9295,
+          "min": 144.3539,
+          "max": 147.5151,
+          "stdev": 1.29055664820348
+        },
+        "eval_ms": {
+          "median": 2819.095,
+          "min": 2798.764,
+          "max": 2837.915,
+          "stdev": 15.987296213625994
+        },
+        "prompt_eval_ms": {
+          "median": 28.85,
+          "min": 27.655,
+          "max": 30.1,
+          "stdev": 0.9982512487122447
+        },
+        "output_tokens": {
+          "median": 103,
+          "min": 103,
+          "max": 103,
+          "stdev": 0.0
+        },
+        "prompt_tokens": {
+          "median": 393,
+          "min": 393,
+          "max": 393,
+          "stdev": 0.0
+        }
+      }
+    },
+    {
+      "label": "qwen3:8b-q4_K_M ctx=32768 \u00b7 prefill_stress",
+      "model": "qwen3:8b-q4_K_M",
+      "context_length": 32768,
+      "prompt_key": "prefill_stress",
+      "prompt_note": "Long prefill (~400 tokens of context) \u2014 stresses prompt-processing / prefill throughput and exercises KV-cache growth.",
+      "prompt_text": "You are reviewing the following notes before answering.\n\nLocal AI inference on client hardware is bounded by several distinct resources, and confusing them is a common mistake. Model weights occupy memory proportional to parameter count and precision: a 7-billion-parameter model at FP16 needs roughly 14 GB just for weights, while the same model quantized to 4-bit needs closer to 4 GB. But weights are only one consumer of memory. The KV cache grows with both context length and batch size, and at long context it can rival or exceed the size of the weights themselves. Activations and workspace scratch memory add further overhead. On a discrete GPU with a fixed VRAM budget, exceeding capacity forces the runtime to offload layers to system RAM, and the resulting transfers across the PCIe bus dominate latency, collapsing throughput. On a unified-memory system the CPU and GPU share one pool, so there is no discrete-VRAM ceiling in the same sense, but total system memory and memory bandwidth still bound what is practical. Separately, compute throughput \u2014 how fast the accelerator performs the matrix multiplications that dominate attention and the feed-forward layers \u2014 determines the ceiling on tokens per second once everything is resident. Memory capacity and compute throughput are therefore independent constraints: a workload can be memory-bound, compute-bound, or bandwidth-bound, and the bottleneck can shift as context length grows. Quantization primarily relieves the memory-capacity constraint and can improve throughput by reducing the bytes moved per operation, at some risk to output quality. Time to first token is dominated by model load plus prompt prefill, while steady-state tokens per second reflects decode speed; these are different metrics and a system can be strong at one and weak at the other.\n\nBased only on the notes above, answer in three sentences: why can a model that fits in a GPU's VRAM still run slowly as the conversation gets longer?",
+      "attachments": {
+        "files": [],
+        "images": [],
+        "assembled_chars": 1978,
+        "assembled_approx_tokens": 494
+      },
+      "residency": "41%/59% CPU/GPU",
+      "cold_start": null,
+      "runs": [
+        {
+          "model": "qwen3:8b-q4_K_M",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 220.69719999944937,
+          "ttfv_ms": 220.69740000006277,
+          "wall_total_ms": 4856.350999999449,
+          "load_ms": 146.8824,
+          "total_ms": 4833.081,
+          "prompt_eval_ms": 48.625,
+          "eval_ms": 4633.007,
+          "prompt_tokens": 393,
+          "output_tokens": 107,
+          "gen_tps": 23.095151809613064,
+          "prompt_tps": 8082.262210796915,
+          "response_text": "As the conversation grows longer, the key-value (KV) cache, which stores intermediate results for attention mechanisms, expands in size, potentially rivaling or exceeding the memory used by the model weights. This increased memory demand can lead to memory-bound performance, where the GPU's VRAM becomes saturated, forcing offloading to system memory and increasing latency due to PCIe transfers. Additionally, as context length increases, the memory bandwidth and available system memory become critical constraints, limiting the throughput even if the model fits within the GPU's VRAM.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 16,
+            "util_peak": 37.0,
+            "util_avg": 28.4375,
+            "vram_used_peak_mb": 6002.0,
+            "power_peak_w": 33.87,
+            "power_avg_w": 23.524375,
+            "temp_peak_c": 63.0
+          }
+        },
+        {
+          "model": "qwen3:8b-q4_K_M",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 210.0638000001709,
+          "ttfv_ms": 210.0639999998748,
+          "wall_total_ms": 4765.881100000115,
+          "load_ms": 146.4362,
+          "total_ms": 4750.3005,
+          "prompt_eval_ms": 45.115,
+          "eval_ms": 4553.085,
+          "prompt_tokens": 393,
+          "output_tokens": 107,
+          "gen_tps": 23.500549627340583,
+          "prompt_tps": 8711.07170564114,
+          "response_text": "As the conversation grows longer, the key-value (KV) cache, which stores intermediate results for attention mechanisms, expands in size, potentially rivaling or exceeding the memory used by the model weights. This increased memory demand can lead to memory-bound performance, where the GPU's VRAM becomes saturated, forcing offloading to system memory and increasing latency due to PCIe transfers. Additionally, as context length increases, the memory bandwidth and available system memory become critical constraints, limiting the throughput even if the model fits within the GPU's VRAM.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 16,
+            "util_peak": 36.0,
+            "util_avg": 27.875,
+            "vram_used_peak_mb": 6002.0,
+            "power_peak_w": 22.82,
+            "power_avg_w": 22.215,
+            "temp_peak_c": 63.0
+          }
+        },
+        {
+          "model": "qwen3:8b-q4_K_M",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 221.12440000000788,
+          "ttfv_ms": 221.1245999997118,
+          "wall_total_ms": 4879.335900000115,
+          "load_ms": 149.8958,
+          "total_ms": 4857.9759,
+          "prompt_eval_ms": 46.598,
+          "eval_ms": 4655.933,
+          "prompt_tokens": 393,
+          "output_tokens": 107,
+          "gen_tps": 22.981430359930005,
+          "prompt_tps": 8433.838362161467,
+          "response_text": "As the conversation grows longer, the key-value (KV) cache, which stores intermediate results for attention mechanisms, expands in size, potentially rivaling or exceeding the memory used by the model weights. This increased memory demand can lead to memory-bound performance, where the GPU's VRAM becomes saturated, forcing offloading to system memory and increasing latency due to PCIe transfers. Additionally, as context length increases, the memory bandwidth and available system memory become critical constraints, limiting the throughput even if the model fits within the GPU's VRAM.",
+          "thinking_chars": 0,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": true,
+            "samples": 16,
+            "util_peak": 35.0,
+            "util_avg": 28.6875,
+            "vram_used_peak_mb": 6002.0,
+            "power_peak_w": 22.5,
+            "power_avg_w": 21.96,
+            "temp_peak_c": 63.0
+          }
+        }
+      ],
+      "aggregate": {
+        "n_ok": 3,
+        "n_total": 3,
+        "gen_tps": {
+          "median": 23.095151809613064,
+          "min": 22.981430359930005,
+          "max": 23.500549627340583,
+          "stdev": 0.2228015491002263
+        },
+        "prompt_tps": {
+          "median": 8433.838362161467,
+          "min": 8082.262210796915,
+          "max": 8711.07170564114,
+          "stdev": 257.3077486745045
+        },
+        "ttft_ms": {
+          "median": 220.69719999944937,
+          "min": 210.0638000001709,
+          "max": 221.12440000000788,
+          "stdev": 5.116298224970504
+        },
+        "ttfv_ms": {
+          "median": 220.69740000006277,
+          "min": 210.0639999998748,
+          "max": 221.1245999997118,
+          "stdev": 5.116298225172092
+        },
+        "wall_total_ms": {
+          "median": 4856.350999999449,
+          "min": 4765.881100000115,
+          "max": 4879.335900000115,
+          "stdev": 48.97289508490047
+        },
+        "load_ms": {
+          "median": 146.8824,
+          "min": 146.4362,
+          "max": 149.8958,
+          "stdev": 1.53653673203373
+        },
+        "eval_ms": {
+          "median": 4633.007,
+          "min": 4553.085,
+          "max": 4655.933,
+          "stdev": 44.0843114749705
+        },
+        "prompt_eval_ms": {
+          "median": 46.598,
+          "min": 45.115,
+          "max": 48.625,
+          "stdev": 1.4386767840237384
+        },
+        "output_tokens": {
+          "median": 107,
+          "min": 107,
+          "max": 107,
+          "stdev": 0.0
+        },
+        "prompt_tokens": {
+          "median": 393,
+          "min": 393,
+          "max": 393,
+          "stdev": 0.0
+        }
+      }
+    }
+  ]
+}
