@@ -261,8 +261,10 @@ RTX without a single weight changing.
 
 Because the platforms differ in accelerator, memory architecture, runtime, OS and
 power behaviour, treat this as a system-level client comparison rather than an
-isolated GPU benchmark. [TESTPLAN.md](TESTPLAN.md) is kept unchanged as the
-pre-registration record of what was predicted before the data existed.
+isolated GPU benchmark. The original hypotheses and falsification criteria in
+[TESTPLAN.md](TESTPLAN.md) were preserved as written before the data existed;
+that document was subsequently annotated with operational findings discovered
+during execution.
 
 ## Reference files, documents & images (task-based benchmarking)
 

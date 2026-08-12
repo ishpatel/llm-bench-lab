@@ -31,8 +31,10 @@ measured.
 This was measured, not theorised. Pointing the harness at `http://localhost:11434`
 on the RTX machine added a constant **2,071 ms plus or minus 12.9 ms** to every
 single request: identical across all fifteen cells regardless of model size or
-generation speed. The cause is Windows resolving `localhost` to IPv6 `::1` first
-and paying a timeout before falling back to IPv4.
+generation speed. The delay was isolated to the Windows `localhost` connection
+path, since switching to `127.0.0.1` removed it. That is consistent with IPv6
+`::1` resolution and fallback behaviour, though no packet capture was taken to
+confirm the exact mechanism.
 
 The reason it is dangerous rather than merely annoying is that the delay happens
 *before* the request reaches Ollama, so Ollama's own reported timings look

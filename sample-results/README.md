@@ -13,10 +13,20 @@ them.
 
 Two caveats recorded with the data rather than hidden:
 
-**Client overhead.** Every file here measures 3 to 26 ms of client-side overhead
-(wall-clock time to first visible token minus Ollama's own load and prefill
-timings). An earlier RTX campaign measured 2,071 ms of it, caused by `localhost`
-resolving to IPv6 first on Windows, and was discarded rather than published.
+**Unattributed request-path overhead.** Defined here as wall-clock time to first
+visible token minus Ollama's own reported load and prompt-evaluation time. It is
+a residual, not a measurement of one component: it can contain transport and name
+resolution, server-side scheduling, runtime bookkeeping, and some first-token
+behaviour. Every file here sits at 3 to 26 ms of it.
+
+An earlier RTX campaign measured 2,071 ms plus or minus 12.9 ms of that residual,
+constant across 45 runs regardless of model size or speed. The delay was isolated
+to the Windows `localhost` connection path, because switching to `127.0.0.1`
+removed it; that is consistent with IPv6 `::1` resolution and fallback, though no
+packet capture was taken to confirm the mechanism. Since the delay occurred before
+the request reached Ollama, server-side timings looked healthy while every
+wall-clock latency was wrong, so that campaign was discarded rather than
+published.
 
 **Reproducibility.** M3 Max within-run spread is 0.0 to 2.9%. The RTX laptop's
 median is 1.5 to 2.2% but individual cells reach 19.6%, and its Q8 measurement
