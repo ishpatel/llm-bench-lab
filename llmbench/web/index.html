@@ -154,6 +154,15 @@
   .score.ok{background:rgba(210,153,34,.14);color:var(--ok)}
   .score.bad{background:rgba(229,83,75,.14);color:var(--bad)}
   .speedval.good{color:var(--good)} .speedval.ok{color:var(--ok)} .speedval.bad{color:var(--bad)}
+  .machine{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
+    padding:3px 10px;border-radius:20px;white-space:nowrap;border:1px solid transparent}
+  .machine i{width:7px;height:7px;border-radius:50%;flex:none}
+  .machine.m0{background:rgba(118,185,0,.12);color:var(--good);border-color:rgba(118,185,0,.35)}
+  .machine.m0 i{background:var(--good)}
+  .machine.m1{background:rgba(77,163,255,.12);color:var(--info);border-color:rgba(77,163,255,.35)}
+  .machine.m1 i{background:var(--info)}
+  .machine.m2{background:rgba(210,153,34,.12);color:var(--ok);border-color:rgba(210,153,34,.35)}
+  .machine.m2 i{background:var(--ok)}
 
   /* ---------- legend ---------- */
   details.legend{border:1px solid var(--border);border-radius:var(--radius);padding:13px 16px;
@@ -391,6 +400,7 @@
     </details>
     <div class="filters">
       <div class="field"><label>Search</label><input id="fSearch" placeholder="name, prompt, model…"></div>
+      <div class="field"><label>Machine</label><select id="fSystem"><option value="">All machines</option></select></div>
       <div class="field"><label>Model</label><select id="fModel"><option value="">All models</option></select></div>
       <div class="field"><label>Sort by</label><select id="fSort">
         <option value="created">Newest first</option>
@@ -405,7 +415,8 @@
     </div>
     <div class="card" style="padding:0;overflow:auto">
       <table class="runs"><thead><tr>
-        <th title="Tick to compare"></th><th>Run</th><th>Model</th>
+        <th title="Tick to compare"></th><th>Run</th>
+        <th title="Which computer produced this measurement">Machine</th><th>Model</th>
         <th title="Tokens per second while answering">Speed</th>
         <th title="Milliseconds until the first visible word">First word</th>
         <th title="Tokens read / tokens written">In / Out</th>
@@ -881,9 +892,16 @@ async function loadRuns(){
   const fm=$('#fModel');const cur=fm.value;
   fm.innerHTML='<option value="">All models</option>'+models.map(m=>`<option>${esc(m)}</option>`).join('');
   fm.value=cur;
+  // Machine filter, and a stable ordering that fixes each machine's chip colour.
+  const systems=[...new Set(state.runs.map(systemLabel))].sort();
+  state.systemOrder=systems;
+  const fs=$('#fSystem');const curS=fs.value;
+  fs.innerHTML='<option value="">All machines'+(systems.length>1?` (${systems.length})`:'')+'</option>'
+    +systems.map(x=>`<option>${esc(x)}</option>`).join('');
+  fs.value=curS;
   renderRuns();
 }
-['#fSearch','#fModel','#fSort'].forEach(s=>$(s).oninput=renderRuns);
+['#fSearch','#fModel','#fSystem','#fSort'].forEach(s=>$(s).oninput=renderRuns);
 $('#refresh').onclick=loadRuns;
 $('#importBtn').onclick=()=>$('#importFile').click();
 $('#importFile').onchange=e=>{
@@ -907,10 +925,12 @@ function scorePill(r){
   return `<span class="score ${cls}">${o.toFixed(1)} ★</span>`;
 }
 function renderRuns(){
-  const q=$('#fSearch').value.toLowerCase(),fm=$('#fModel').value,sort=$('#fSort').value;
+  const q=$('#fSearch').value.toLowerCase(),fm=$('#fModel').value,
+        fsys=$('#fSystem').value,sort=$('#fSort').value;
   let rows=state.runs.filter(r=>{
     if(fm&&r.model!==fm)return false;
-    const hay=((r.name||'')+' '+(r.model||'')+' '+((r.prompt&&r.prompt.text)||'')).toLowerCase();
+    if(fsys&&systemLabel(r)!==fsys)return false;
+    const hay=((r.name||'')+' '+(r.model||'')+' '+systemLabel(r)+' '+((r.prompt&&r.prompt.text)||'')).toLowerCase();
     return hay.includes(q);
   });
   rows.sort((a,b)=>{
@@ -930,6 +950,7 @@ function renderRuns(){
     tr.innerHTML=`<td><input type="checkbox" ${state.selected.has(r.id)?'checked':''} data-id="${r.id}" style="width:auto"></td>
       <td>${r.name?esc(r.name):'<span class="hint">untitled</span>'} ${statePill(r.state)}<br>
         <span class="hint">${esc((r.prompt&&r.prompt.text||'').slice(0,60))}</span></td>
+      <td>${machineChip(r)}</td>
       <td class="mono">${esc(r.model||'')}</td>
       <td><b class="speedval ${speedClass(m.gen_tps)}">${fmt(m.gen_tps)}</b> <span class="hint">tok/s</span></td>
       <td>${fmt(m.ttfv_ms!=null?m.ttfv_ms:m.ttft_ms)} <span class="hint">ms</span></td>
@@ -944,6 +965,15 @@ function renderRuns(){
   $('#cmpCount').textContent=state.selected.size;
 }
 function statePill(s){return s&&s!=='done'?`<span class="pill ${s}">${s}</span>`:'';}
+// Stable colour per machine so a run's hardware is readable at a glance and the
+// same machine keeps the same colour everywhere in the table.
+function systemLabel(r){return (r.system&&r.system.label)||'unknown';}
+function machineChip(r){
+  const lab=systemLabel(r);
+  const idx=(state.systemOrder||[]).indexOf(lab);
+  const short=lab.replace(/\s*\(.*\)\s*/,'').trim()||lab;
+  return `<span class="machine m${idx<0?2:idx%3}" title="${esc(lab)}"><i></i>${esc(short)}</span>`;
+}
 
 /* ---------------- run detail + rating ---------------- */
 const RATE_DIMS=[
@@ -962,6 +992,7 @@ async function openRun(id){
   const html=`<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
     <button class="close" onclick="closeModal()">×</button>
     <h2>${r.name?esc(r.name):'Untitled run'} ${statePill(r.state)}</h2>
+    <div style="margin:4px 0 2px">${machineChip(r)}</div>
     <div class="hint mono">${esc(r.model)} · ${(r.created||'').replace('T',' ')}${r.engine&&r.engine!=='Ollama'?' · engine: '+esc(r.engine):''}</div>
     ${metricsHtml(r.metrics)}
     <label>Prompt</label><pre class="out" style="max-height:160px">${esc(r.prompt&&r.prompt.text||'')}</pre>
@@ -1042,7 +1073,8 @@ function renderCompare(runs){
     const rating=r.rating&&r.rating.overall!=null?`<span class="score ${r.rating.overall>=4?'good':r.rating.overall>=3?'ok':'bad'}">${r.rating.overall.toFixed(1)} ★</span>`:'<span class="hint">unrated</span>';
     const col=document.createElement('div');col.className='cmpcol';
     col.innerHTML=`<div style="font-weight:750">${r.name?esc(r.name):'Untitled'}</div>
-      <div class="hint mono" style="margin-bottom:8px">${esc(r.model)}</div>
+      <div class="hint mono" style="margin-bottom:6px">${esc(r.model)}</div>
+      <div style="margin-bottom:8px">${machineChip(r)}</div>
       <div class="cmprow"><span class="k">Your score</span><span class="v">${rating}</span></div>
       ${metricRows.map(([k,label])=>{
         const v=m[k];const isBest=best[k]!=null&&v===best[k];
