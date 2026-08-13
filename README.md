@@ -124,11 +124,22 @@ portable: copy a run folder between machines to merge history into one UI.
 python bench.py info
 
 # 2. Run a benchmark config (writes results/<name>_<system>_<stamp>.json)
+#    The metrics print to the terminal as soon as the run finishes.
 python bench.py run configs/quant-sweep.json --label "M3 Max (48GB)"
 
-# 3. Build an HTML report from one or more results files
+# 3. Re-print those metrics for any saved results file
+python bench.py summary results/quant-sweep_*.json
+
+# 4. Build an HTML report from one or more results files
 python bench.py report results/quant-sweep_*.json --out results/report.html
 ```
+
+`run`, `summary` and `report` all print the same table: median speed, time to
+the first visible word, prompt-reading throughput, token counts and whether the
+model fit on the GPU, followed by a plain-English read of what the numbers mean
+and any caveat (a cell that failed, offloaded to CPU, or varied too much across
+repeats to quote precisely). Colour is dropped automatically when the output is
+piped, and honours `NO_COLOR`.
 
 ## Commands
 
@@ -136,7 +147,8 @@ python bench.py report results/quant-sweep_*.json --out results/report.html
 |---|---|
 | `serve` | Launch the interactive web UI (`--host`, `--port`) |
 | `info` | Print detected system + Ollama status and models |
-| `run CONFIG` | Execute a benchmark config, write a results JSON |
+| `run CONFIG` | Execute a benchmark config, print the metrics, write a results JSON |
+| `summary RESULTS...` | Re-print the metrics table for saved results files |
 | `report RESULTS...` | Build an HTML report; pass **multiple** files to compare systems |
 | `export RUN_ID` | Export a web-UI run to a portable `.llmbench.json` bundle |
 | `import BUNDLE` | Import a run bundle from another machine |

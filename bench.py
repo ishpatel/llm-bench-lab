@@ -20,6 +20,7 @@ import re
 import sys
 
 from llmbench import config as cfg_mod
+from llmbench import console as console_mod
 from llmbench import report as report_mod
 from llmbench import server as server_mod
 from llmbench import telemetry
@@ -103,8 +104,9 @@ def cmd_run(args: argparse.Namespace) -> int:
         args.outdir, f"{_slug(cfg['name'])}_{sys_slug}_{stamp}.json")
     with open(out, "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2)
+    console_mod.print_summary(results)
     print(f"\nWrote results → {out}")
-    print(f"Next: python bench.py report {out}")
+    print(f"Next: python bench.py report {out}   (or: python bench.py summary {out})")
     return 0
 
 
@@ -251,7 +253,17 @@ def cmd_report(args: argparse.Namespace) -> int:
     html = report_mod.build_report(results, title=args.title)
     with open(args.out, "w", encoding="utf-8") as f:
         f.write(html)
-    print(f"Wrote report → {args.out}")
+    for res in results:
+        console_mod.print_summary(res)
+    print(f"\nWrote report → {args.out}")
+    return 0
+
+
+def cmd_summary(args: argparse.Namespace) -> int:
+    """Re-print the terminal summary for results saved earlier."""
+    for path in args.results:
+        with open(path, "r", encoding="utf-8") as f:
+            console_mod.print_summary(json.load(f))
     return 0
 
 
@@ -296,6 +308,10 @@ def main(argv=None) -> int:
     pev.add_argument("suite", help="'rag', 'guardrails', or a path to a suite JSON")
     pev.add_argument("--model", default=None, help="override answer model")
     pev.set_defaults(func=cmd_eval)
+
+    psum = sub.add_parser("summary", help="print metrics for saved results JSON")
+    psum.add_argument("results", nargs="+", help="one or more results JSON files")
+    psum.set_defaults(func=cmd_summary)
 
     prep = sub.add_parser("report", help="build HTML report from results JSON")
     prep.add_argument("results", nargs="+", help="one or more results JSON files")

@@ -47,10 +47,10 @@ machine. If you ever override it, override it to an IP address. To check a
 result file for the artifact:
 
 ```bash
-python bench.py report results/<file>.json --out /tmp/check.html
+python bench.py summary results/<file>.json
 ```
 
-or directly:
+which prints the metrics table without building a report, or directly:
 
 ```bash
 python -c "import json,glob,statistics as st; d=json.load(open(sorted(glob.glob('results/cross-system_*.json'))[-1])); g=[r['ttfv_ms']-(r.get('load_ms') or 0)-(r.get('prompt_eval_ms') or 0) for c in d['cells'] for r in c['runs'] if r.get('ttfv_ms')]; print('overhead median:', round(st.median(g),1), 'ms')"
