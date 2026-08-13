@@ -5,6 +5,7 @@ small JSON API that drives the existing Runner/attachments/extract stack:
 
     GET  /                      the UI
     GET  /api/models            locally installed Ollama models + system info
+    GET  /api/readiness         dependency + environment checks for this machine
     POST /api/runs              start a benchmark run -> {id}; runs in the queue
     GET  /api/jobs/<id>         live job state + progress log (UI polls this)
     GET  /api/runs              all saved runs (summaries) for the master view
@@ -27,6 +28,7 @@ from urllib.parse import parse_qs, urlparse
 from . import evals as evals_mod
 from . import guardrails
 from . import rag as rag_mod
+from . import readiness
 from . import report as report_mod
 from . import telemetry
 from .agent import Agent
@@ -372,6 +374,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"kb": app.rag.list()})
             if path == "/api/system":
                 return self._json(telemetry.describe_system_deep())
+            if path == "/api/readiness":
+                up = app.client.is_up()
+                return self._json(readiness.describe_readiness(
+                    client=app.client, base_url=app.base_url,
+                    models=app.client.models_detailed() if up else [],
+                    project_root=app.project_root))
             if path in ("/api/backend/status", "/api/trt/status"):
                 qs = parse_qs(urlparse(self.path).query)
                 url = (qs.get("url", [None])[0] or "").strip()

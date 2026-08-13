@@ -52,6 +52,37 @@
   .syscard2 .line{font-size:12px;color:var(--muted);margin-top:2px}
   .syscard2 .line b{color:var(--fg);font-weight:600}
 
+  /* ---------- bench readiness ---------- */
+  .rsection{margin-top:22px;padding-top:18px;border-top:1px solid var(--border)}
+  .rhead{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+  .rhead button{white-space:nowrap;flex:none}
+  .rbanner{display:flex;align-items:center;gap:9px;font-weight:650;font-size:13px;
+    padding:10px 14px;border-radius:var(--radius);border:1px solid var(--border);margin-bottom:12px}
+  .rbanner .dot{width:9px;height:9px;border-radius:50%;flex:none}
+  .rbanner.ok{background:rgba(118,185,0,.10);border-color:rgba(118,185,0,.35);color:var(--good)}
+  .rbanner.ok .dot{background:var(--good)}
+  .rbanner.warn{background:rgba(210,153,34,.10);border-color:rgba(210,153,34,.35);color:var(--ok)}
+  .rbanner.warn .dot{background:var(--ok)}
+  .rbanner.fail{background:rgba(214,69,69,.10);border-color:rgba(214,69,69,.38);color:var(--bad)}
+  .rbanner.fail .dot{background:var(--bad)}
+  .readygrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(268px,1fr));gap:12px}
+  .rcard{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);
+    padding:12px 14px;border-left-width:3px}
+  .rcard.ok{border-left-color:var(--good)} .rcard.warn{border-left-color:var(--ok)}
+  .rcard.fail{border-left-color:var(--bad)}
+  .rcard .rtop{display:flex;align-items:center;gap:7px;font-weight:650;font-size:13px}
+  .rcard .badge{margin-left:auto;font-size:10px;font-weight:700;letter-spacing:.06em;
+    text-transform:uppercase;padding:2px 7px;border-radius:20px}
+  .rcard.ok .badge{background:rgba(118,185,0,.14);color:var(--good)}
+  .rcard.warn .badge{background:rgba(210,153,34,.14);color:var(--ok)}
+  .rcard.fail .badge{background:rgba(214,69,69,.14);color:var(--bad)}
+  .rcard .rdetail{font-size:12.5px;margin-top:5px}
+  .rcard.fail .rdetail{color:var(--bad)}
+  .rcard .rwhy{font-size:11.5px;color:var(--muted);margin-top:5px;line-height:1.45}
+  .rcard .rfix{margin-top:7px;font-size:11.5px;color:var(--muted)}
+  .rcard .rfix code{background:var(--card);border:1px solid var(--border);border-radius:4px;
+    padding:1px 5px;font-size:11px;color:var(--fg)}
+
   /* ---------- nav ---------- */
   nav{display:flex;gap:2px;padding:0 20px;border-bottom:1px solid var(--border);
     background:var(--bg);position:sticky;top:59px;z-index:9;overflow-x:auto}
@@ -235,10 +266,23 @@
 </header>
 <div class="sysdrawer" id="sysDrawer" style="display:none">
   <div class="inner">
-    <h2>This machine</h2>
-    <p class="lead">Everything below runs 100% locally on this hardware, so no data leaves the device.
-      The GPU does the heavy lifting for AI inference; memory determines which models fit.</p>
+    <h2>System details</h2>
+    <p class="lead">The hardware this machine has. Everything runs 100% locally, so no data leaves
+      the device. The GPU does the heavy lifting for AI inference; memory determines which models fit.</p>
     <div class="sysgrid" id="sysGrid"></div>
+
+    <section class="rsection">
+      <div class="rhead">
+        <div>
+          <h2>Bench readiness</h2>
+          <p class="lead">Whether this machine can actually run a benchmark: the software the harness
+            depends on, the models it needs, and somewhere to save results. Checked live, not assumed.</p>
+        </div>
+        <button class="ghost small" id="readyRecheck">Re-check</button>
+      </div>
+      <div id="readyBanner" class="rbanner"><span class="hint">checking…</span></div>
+      <div class="readygrid" id="readyGrid"></div>
+    </section>
   </div>
 </div>
 
@@ -682,6 +726,7 @@ function renderSystem(){
   if(env.backend)chips.push(`<span class="hwchip">${esc(env.backend)}</span>`);
   const nGen=state.models.filter(m=>m.generative&&!m.embedding).length;
   chips.push(`<span class="hwchip"><b>${nGen}</b>&nbsp;model${nGen===1?'':'s'} ready</span>`);
+  chips.push(`<span class="hwchip" id="readyChip"><span class="hint">checking…</span></span>`);
   $('#sysChips').innerHTML=chips.join('');
   // drawer cards
   const cards=[];
@@ -699,17 +744,69 @@ function renderSystem(){
   cards.push(card('Memory',mem.total_gb?`${mem.total_gb} GB`:'unknown',[
     mem.type?esc(mem.type):null,
     'Models, their working memory (KV cache) and activations all have to fit here, the #1 constraint on which models you can run.']));
+  // Software versions live in Bench readiness below, where they are judged
+  // against what the harness needs rather than merely listed.
   cards.push(card('Environment',env.os||'unknown',[
     env.arch?`Architecture: <b>${esc(env.arch)}</b>`:null,
-    `Python <b>${esc(env.python||'?')}</b> · Ollama <b>${esc(env.ollama||'?')}</b>`,
     env.backend?`Inference backend: <b>${esc(env.backend)}</b>`:null,
     'Serving locally via Ollama on localhost. Nothing leaves this machine.']));
   $('#sysGrid').innerHTML=cards.join('');
+  if(state.readiness)renderReadyChip(state.readiness);  // chip bar was just rebuilt
   function card(cat,main,lines){
     return `<div class="syscard2"><div class="cat">${esc(cat)}</div><div class="main">${esc(main)}</div>
       ${lines.filter(Boolean).map(l=>`<div class="line">${l}</div>`).join('')}</div>`;
   }
 }
+
+/* ---------------- bench readiness ---------------- */
+// Kept apart from the hardware cards above: "what this machine is" and "can it
+// run a benchmark" are different questions, and mixing them buries the answer
+// to the second one.
+async function loadReadiness(){
+  const grid=$('#readyGrid'),banner=$('#readyBanner');
+  try{
+    const r=await fetch('/api/readiness').then(x=>x.json());
+    state.readiness=r;
+    banner.className='rbanner '+r.state;
+    const counts=[];
+    if(r.counts.fail)counts.push(`${r.counts.fail} blocking`);
+    if(r.counts.warn)counts.push(`${r.counts.warn} optional`);
+    banner.innerHTML=`<span class="dot"></span><span>${esc(r.headline)}</span>`
+      +(counts.length?`<span class="hint" style="margin-left:auto;font-weight:400">${counts.join(' · ')}</span>`:'');
+    grid.innerHTML=r.checks.map(c=>`<div class="rcard ${c.status}">
+      <div class="rtop">${esc(c.label)}<span class="badge">${c.status==='ok'?'ready':c.status==='warn'?'optional':'blocking'}</span></div>
+      <div class="rdetail">${esc(c.detail)}</div>
+      ${c.why?`<div class="rwhy">${esc(c.why)}</div>`:''}
+      ${c.fix?`<div class="rfix">Fix: ${/^[a-z-]+ [a-z0-9:._-]+$/i.test(c.fix)?`<code>${esc(c.fix)}</code>`:esc(c.fix)}</div>`:''}
+    </div>`).join('');
+    renderReadyChip(r);
+  }catch(e){
+    banner.className='rbanner fail';
+    banner.innerHTML='<span class="dot"></span><span>Could not run the readiness checks.</span>';
+    grid.innerHTML='';
+  }
+}
+
+// A summary in the header so a blocking problem is visible without opening the
+// drawer, which is where someone looks only once they already suspect trouble.
+function renderReadyChip(r){
+  // The unreachable-Ollama branch replaces the whole chip bar, which is exactly
+  // when a readiness summary is worth showing, so create the chip if it is gone.
+  let el=$('#readyChip');
+  if(!el){
+    const bar=$('#sysChips');if(!bar)return;
+    el=document.createElement('span');el.className='hwchip';el.id='readyChip';
+    bar.appendChild(el);
+  }
+  const word=r.state==='ok'?'Ready':r.state==='warn'?'Ready':`${r.counts.fail} to fix`;
+  const col=r.state==='fail'?'var(--bad)':r.state==='warn'?'var(--ok)':'var(--good)';
+  el.innerHTML=`<span class="dot" style="background:${col}"></span><b style="color:${col}">${esc(word)}</b>`;
+  el.title=r.headline+'. Open System details for the full list.';
+  el.style.cursor='pointer';
+  el.onclick=()=>{if($('#sysDrawer').style.display==='none')$('#sysToggle').click();
+    $('#readyBanner').scrollIntoView({behavior:'smooth',block:'center'});};
+}
+$('#readyRecheck').onclick=loadReadiness;
 
 /* ---------------- init ---------------- */
 async function init(){
@@ -734,11 +831,13 @@ async function init(){
     if(firstGen)sel.value=firstGen.name;
     updateModelCaps();
     trtHelpDefault();
+    // The hardware is knowable whether or not Ollama is running, so the System
+    // details section is filled in either way; only the chip bar changes.
+    renderSystem();
     if(!md.ok){
       $('#sysChips').innerHTML=`<span class="hwchip" style="color:var(--bad)">Ollama not reachable. Run <b>ollama serve</b></span>`;
       $('#submit').disabled=true;
     }else{
-      renderSystem();
       // Ollama can be running with nothing pulled. Disabling the button without
       // saying why leaves the first-run user with no way to work out the cause.
       if(!state.models.filter(m=>m.generative&&!m.embedding).length){
@@ -751,6 +850,7 @@ async function init(){
       }
     }
   }catch(e){$('#sysChips').innerHTML='<span class="hwchip" style="color:var(--bad)">API error</span>';}
+  loadReadiness();   // runs regardless: an unreachable engine is itself a result
   loadRuns();
 }
 
