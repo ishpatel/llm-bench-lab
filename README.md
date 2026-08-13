@@ -81,6 +81,29 @@ exactly those distinctions.
 - Models pulled ahead of time (see each config's `models` list)
 - NVIDIA only (optional): `nvidia-smi` on PATH for live GPU telemetry
 
+`python bench.py info` reports what the harness detects on this machine and
+which models are installed. Run it first on a new system.
+
+### When something is missing
+
+Every case below is checked before any measurement starts, exits non-zero, and
+writes no results file, so a broken environment cannot be mistaken for a
+finished benchmark.
+
+| Situation | What happens |
+|---|---|
+| Ollama not installed or not running | `error: Ollama not reachable at <url> (start it with `ollama serve`)` |
+| No models pulled at all | Names every missing model, prints the `ollama pull` command for each, and stops |
+| Some models pulled | Warns about the missing ones, then measures the rest and says which |
+| Config or prompt file missing / malformed | Names the file and the problem, and lists the available configs |
+| Prompt key not in the prompt set | Names the key and the file the keys live in |
+| External backend (TensorRT-LLM, NIM, vLLM) unreachable | Names the endpoint and the URL it tried |
+| A model loads but a run fails | The cell is marked `failed`; the summary reports how many repeats succeeded |
+
+The web UI degrades the same way: it still starts, shows why it cannot run
+(unreachable Ollama, or no generative models installed), and disables the run
+button rather than failing on submit.
+
 ## Interactive web app (recommended)
 
 ```bash

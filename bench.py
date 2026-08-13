@@ -18,6 +18,7 @@ import json
 import os
 import re
 import sys
+from typing import Any, Dict
 
 from llmbench import config as cfg_mod
 from llmbench import console as console_mod
@@ -58,15 +59,75 @@ def cmd_info(args: argparse.Namespace) -> int:
     return 0
 
 
+def _config_error(exc: Exception, args: argparse.Namespace) -> int:
+    """Turn a config or prompt-set problem into an explanation. These are the
+    first errors a new machine hits, so a stack trace is the wrong answer."""
+    if isinstance(exc, FileNotFoundError):
+        missing = getattr(exc, "filename", "") or ""
+        what = "prompt set" if missing == args.prompts else "config"
+        print(f"error: {what} not found: {missing}", file=sys.stderr)
+        if what == "config":
+            here = os.path.join(HERE, "configs")
+            names = sorted(f for f in os.listdir(here) if f.endswith(".json")
+                           ) if os.path.isdir(here) else []
+            if names:
+                print(f"       available configs: {', '.join(names)}",
+                      file=sys.stderr)
+    elif isinstance(exc, json.JSONDecodeError):
+        print(f"error: {args.config} is not valid JSON ({exc}).", file=sys.stderr)
+    elif isinstance(exc, KeyError):
+        print(f"error: {exc.args[0] if exc.args else exc}", file=sys.stderr)
+        print(f"       prompt keys live in {args.prompts}", file=sys.stderr)
+    else:
+        print(f"error: {exc}", file=sys.stderr)
+    return 1
+
+
+def _check_models(cfg: Dict[str, Any], client: "OllamaClient") -> int:
+    """Report every missing model at once, with the command that fixes it.
+    Returns non-zero only when nothing in the config could run."""
+    available = set(client.list_models())
+    wanted = list(dict.fromkeys(cfg["models"]))
+    missing = [m for m in wanted if m not in available]
+    if not missing:
+        return 0
+
+    for m in missing:
+        print(f"warning: {m} is not pulled on this machine", file=sys.stderr)
+    print(f"To install: {'; '.join('ollama pull ' + m for m in missing)}",
+          file=sys.stderr)
+
+    if len(missing) < len(wanted):
+        runnable = [m for m in wanted if m in available]
+        print(f"Continuing with the {len(runnable)} model(s) present: "
+              f"{', '.join(runnable)}", file=sys.stderr)
+        return 0
+
+    print(f"error: none of the {len(wanted)} model(s) in this config are "
+          f"installed, so there is nothing to measure.", file=sys.stderr)
+    if available:
+        print(f"       installed here: {', '.join(sorted(available))}",
+              file=sys.stderr)
+    else:
+        print("       no models are installed at all "
+              "(`ollama pull qwen3:4b-q4_K_M` is a good first one).",
+              file=sys.stderr)
+    return 1
+
+
 def cmd_run(args: argparse.Namespace) -> int:
-    cfg = cfg_mod.load_config(args.config)
-    if args.base_url:
-        cfg["base_url"] = args.base_url
-    if args.label:
-        cfg["system_label"] = args.label
-    if args.runs:
-        cfg["runs"] = args.runs
-    prompts = cfg_mod.load_prompts(args.prompts)
+    try:
+        cfg = cfg_mod.load_config(args.config)
+        if args.base_url:
+            cfg["base_url"] = args.base_url
+        if args.label:
+            cfg["system_label"] = args.label
+        if args.runs:
+            cfg["runs"] = args.runs
+        prompts = cfg_mod.load_prompts(args.prompts)
+        cfg_mod.resolve_prompts(cfg["prompts"], prompts)   # fail before measuring
+    except (OSError, ValueError, KeyError) as exc:
+        return _config_error(exc, args)
 
     # Validate the engine this config actually uses. A config pointing at an
     # external OpenAI-compatible endpoint (trtllm-serve, NIM, vLLM) must not
@@ -82,10 +143,17 @@ def cmd_run(args: argparse.Namespace) -> int:
                   file=sys.stderr)
             return 1
     else:
-        if not OllamaClient(base_url=cfg["base_url"]).is_up():
+        client = OllamaClient(base_url=cfg["base_url"])
+        if not client.is_up():
             print(f"error: Ollama not reachable at {cfg['base_url']} "
                   f"(start it with `ollama serve`).", file=sys.stderr)
             return 1
+        # Check the models up front. Discovering this per cell means a long
+        # config can spend minutes measuring before revealing that the model
+        # it was pointed at was never pulled.
+        rc = _check_models(cfg, client)
+        if rc:
+            return rc
 
     # Resolve relative attachment paths against the config dir, the prompts
     # dir, and the current working directory (in that order).
@@ -96,6 +164,13 @@ def cmd_run(args: argparse.Namespace) -> int:
     ]
     runner = Runner(cfg, prompts, base_dirs=base_dirs)
     results = runner.run()
+
+    # An empty result is a failure, not an empty success. Writing the file and
+    # printing "Wrote results" would read as if the benchmark had worked.
+    if not results.get("cells"):
+        print("error: no cells were measured, so no results were written. "
+              "The log above says why each one was skipped.", file=sys.stderr)
+        return 1
 
     os.makedirs(args.outdir, exist_ok=True)
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")

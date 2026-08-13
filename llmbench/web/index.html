@@ -739,7 +739,16 @@ async function init(){
       $('#submit').disabled=true;
     }else{
       renderSystem();
-      if(!state.models.filter(m=>m.generative&&!m.embedding).length)$('#submit').disabled=true;
+      // Ollama can be running with nothing pulled. Disabling the button without
+      // saying why leaves the first-run user with no way to work out the cause.
+      if(!state.models.filter(m=>m.generative&&!m.embedding).length){
+        $('#submit').disabled=true;
+        const had=state.models.length?
+          ' Only embedding models are installed, which cannot answer prompts.':'';
+        $('#modelCaps').innerHTML='<b style="color:var(--bad)">No models available to '
+          +'benchmark.</b>'+had+' Install one with <code>ollama pull qwen3:4b-q4_K_M</code>, '
+          +'then press Refresh.';
+      }
     }
   }catch(e){$('#sysChips').innerHTML='<span class="hwchip" style="color:var(--bad)">API error</span>';}
   loadRuns();
