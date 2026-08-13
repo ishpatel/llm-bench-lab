@@ -16,15 +16,46 @@ GPU utilization, VRAM, power and temperature.
 The whole thing runs locally in your browser. Every metric is written in plain
 English so anyone can read it.
 
-**A benchmark run, scored.** Speed metrics each carry a plain-English verdict,
-alongside the model's answer and your own 1&ndash;5 quality rating.
+**A benchmark run, explained.** Every metric carries a plain-English verdict,
+tagged with the machine that produced it, alongside the model's answer and four
+dimensions for you to score it on, because speed means nothing if the output is
+wrong.
 
-![Run detail with metric verdicts and a four-dimension rating](docs/screenshots/01-run-detail.png)
+![Run detail with metric verdicts, a machine chip and a four-dimension rating](docs/screenshots/01-run-detail.png)
 
 **Your hardware, explained.** A breakdown of CPU, GPU, NPU, memory and the
-software environment, with a note on what each part actually does.
+software environment, with a note on what each part actually does. Below it,
+kept deliberately separate, is what the harness needs in order to run at all.
 
-![System hardware panel](docs/screenshots/02-system.png)
+![System details panel above the bench readiness section](docs/screenshots/02-system.png)
+
+**It checks itself before you benchmark.** *What is this machine* and *can it
+run* are different questions, so they get different sections. Every dependency
+is probed live, marked **ready**, **optional** or **blocking**, and carries the
+command that fixes it. Optional items say what you lose: no embedding model
+means no Copilot, but benchmarks still run. Nothing here is assumed.
+
+![Bench readiness catching an unreachable Ollama, with fixes](docs/screenshots/09-readiness.png)
+
+The same checks run in the terminal, and exit non-zero so they can gate a
+campaign:
+
+```bash
+python bench.py doctor && python bench.py run configs/cross-system.json
+```
+
+```
+Bench readiness on Apple M3 Max (unified)
+
+  [ready]    Python runtime    3.9.6
+  [ready]    Ollama server     up at http://127.0.0.1:11434 · v0.32.9
+  [ready]    Models installed  6 ready to benchmark
+  [ready]    Embedding model   embeddinggemma:latest
+  [ready]    GPU acceleration  Apple Metal · Apple M3 Max
+  [ready]    Results storage   writable · 277.4 GB free
+
+Ready to benchmark
+```
 
 **Ask your documents (RAG).** Grounded answers with numbered citations and
 per-stage timing (embedding, retrieval, generation).
@@ -41,10 +72,13 @@ adversarial request was prevented.
 
 ![Guardrail evaluation scorecard](docs/screenshots/06-evals.png)
 
-**Benchmark history.** Every run is saved, searchable, sortable, rateable, and
-selectable for side-by-side comparison.
+**Benchmark history, labelled by machine.** Every run is saved, searchable,
+sortable, rateable, and selectable for side-by-side comparison. Because one
+history holds runs from both machines, each row carries a colour-coded
+**Machine** chip and the list can be filtered to one machine. Sorted by speed
+below, the two interleave, which is exactly when an unlabelled row misleads.
 
-![Benchmark history with quality scores](docs/screenshots/07-runs.png)
+![Benchmark history showing the machine column and filter](docs/screenshots/07-runs.png)
 
 **Same model, two machines.** The cross-system view pairs runs by model and flags
 the VRAM wall automatically, with the throughput cost computed. Both models below
@@ -139,12 +173,19 @@ A local, zero-dependency web UI for ad-hoc benchmarking:
   usable); scores appear in the history so you can find the model that's both
   fast *and* good.
 - Every run is **saved** with its own self-contained HTML report.
-- A **Runs** master view lets you browse, search, filter by model, sort (incl.
-  by score), and read a metric legend written for non-experts.
+- A **Runs** master view lets you browse, search, filter by machine or model,
+  sort (incl. by score), and read a metric legend written for non-experts. Each
+  row shows which machine produced it, so a history holding both an RTX and a
+  Mac stays readable when sorted by speed.
 - Select runs and **Compare** them side-by-side, with the best value per metric
-  highlighted.
+  highlighted and each column labelled with its machine.
 - A **System details** panel breaks down the local hardware: CPU (core types),
   GPU (cores, compute API), NPU, memory, and the software environment.
+- A **Bench readiness** section below it checks what the harness needs, live:
+  Python version, a reachable Ollama, installed models, an embedding model, a
+  GPU backend, writable storage, and on NVIDIA hosts `nvidia-smi` and TensorRT.
+  A header chip summarises it so a blocking problem is visible without opening
+  the panel.
 
 An **Advanced** panel exposes the methodology knobs (measured repeats, warm-up,
 cold-start, temperature, max tokens, context length). Defaults keep the rigorous

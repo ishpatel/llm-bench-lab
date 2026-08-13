@@ -195,6 +195,23 @@ number carries a plain-English verdict and the page includes a "how to read
 these numbers" glossary, because a report a non-expert cannot read is a report
 that does not travel.
 
+### `readiness.py` and `console.py`
+
+`telemetry.py` answers *what hardware is this*. `readiness.py` answers the
+different question *can this machine run a benchmark*, and keeping them apart is
+the point: the reason a run cannot start should not be buried among CPU core
+counts. It probes the Python version, a reachable engine, installed models, a
+GPU backend, writable storage, and on NVIDIA hosts `nvidia-smi` and TensorRT,
+grading each `ok` / `warn` / `fail` with the command that fixes it. Both the web
+UI (`GET /api/readiness`) and `bench.py doctor` render the same structure, so
+the two surfaces cannot disagree about what "ready" means.
+
+`console.py` renders results and readiness for a terminal. It imports its
+verdict wording from `report.py` rather than restating it, which is what stops
+the CLI and the HTML from drifting apart as the thresholds change. Table columns
+are dropped by priority when the terminal is narrow; speed and residency are
+never dropped, because those are the two questions a benchmark is run to answer.
+
 ### `store.py` and `jobs.py`
 
 `store.py` writes each run as a self-contained folder (`meta.json`,
@@ -204,7 +221,9 @@ machines merges history, which is the mechanism behind cross-system comparison.
 `jobs.py` is a single-worker FIFO queue. The single worker is the point. Two
 benchmarks running concurrently would share the GPU and corrupt each other's
 timings, so this is a measurement-integrity decision wearing the clothes of a
-concurrency detail.
+concurrency detail. Finished jobs are capped at 200 and evicted oldest-first,
+since each one retains its full log and result; queued and running jobs are
+never evicted, however old, because the UI is still polling them.
 
 ### `server.py` and `web/index.html`
 
