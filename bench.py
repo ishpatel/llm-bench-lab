@@ -29,6 +29,7 @@ from llmbench.ollama import OllamaClient
 from llmbench.runner import Runner
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_BASE_URL = "http://127.0.0.1:11434"
 DEFAULT_PROMPTS = os.path.join(HERE, "configs", "prompts.json")
 
 
@@ -345,14 +346,29 @@ def cmd_summary(args: argparse.Namespace) -> int:
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="bench.py", description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--base-url", default="http://127.0.0.1:11434",
-                   help="Ollama base URL (default: %(default)s)")
+    p.add_argument("--base-url", default=DEFAULT_BASE_URL,
+                   help="Ollama base URL (default: %(default)s). Accepted "
+                        "before or after the subcommand.")
     sub = p.add_subparsers(dest="cmd", required=True)
 
+    def with_base_url(parser):
+        """Accept --base-url after the subcommand too, which is where it reads
+        naturally. SUPPRESS keeps an unused flag here from overwriting a value
+        given before the subcommand; passing it in both places lets the later,
+        more specific one win."""
+        # No %(default)s here: with SUPPRESS there is no default to expand and
+        # argparse raises KeyError when rendering --help.
+        parser.add_argument("--base-url", default=argparse.SUPPRESS,
+                            help=f"Ollama base URL (default: {DEFAULT_BASE_URL})")
+        return parser
+
+
     pi = sub.add_parser("info", help="show system + Ollama status")
+    with_base_url(pi)
     pi.set_defaults(func=cmd_info)
 
     pr = sub.add_parser("run", help="run a benchmark config")
+    with_base_url(pr)
     pr.add_argument("config", help="path to a benchmark config JSON")
     pr.add_argument("--prompts", default=DEFAULT_PROMPTS, help="prompt set JSON")
     pr.add_argument("--label", default=None, help="override system label")
@@ -362,6 +378,7 @@ def main(argv=None) -> int:
     pr.set_defaults(func=cmd_run)
 
     psv = sub.add_parser("serve", help="launch the interactive web UI")
+    with_base_url(psv)
     psv.add_argument("--host", default="127.0.0.1")
     psv.add_argument("--port", type=int, default=8765)
     psv.set_defaults(func=cmd_serve)
@@ -380,6 +397,7 @@ def main(argv=None) -> int:
     pad.set_defaults(func=cmd_adopt)
 
     pev = sub.add_parser("eval", help="run an evaluation suite (rag | guardrails)")
+    with_base_url(pev)
     pev.add_argument("suite", help="'rag', 'guardrails', or a path to a suite JSON")
     pev.add_argument("--model", default=None, help="override answer model")
     pev.set_defaults(func=cmd_eval)
