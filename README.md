@@ -332,18 +332,21 @@ python bench.py report results/cross-system_*.json --out results/cross.html
 **Measured result.** The pre-registered hypothesis was supported. Two ~8.1 GB
 configurations crossed the 8 GB boundary on the RTX laptop and spilled across
 CPU/GPU memory, while both stayed fully resident in the M3 Max's 48 GB unified
-pool:
+pool. All four figures are the `short_qa` cells of the `cross-system` run on
+each machine, so the prompt and the experiment are held constant across the
+comparison:
 
-| Model | RTX 5070 (8 GB) | M3 Max (48 GB) |
-|---|---|---|
-| gemma3:12b-it-q4_K_M | 17.9 tok/s, 41%/59% CPU/GPU | 39.9 tok/s, fully resident |
-| qwen3:4b-fp16 | 19.5 tok/s, 36%/64% CPU/GPU | 43.2 tok/s, fully resident |
+| Model | RTX 5070 (8 GB) | M3 Max (48 GB) | Spilled cost |
+|---|---|---|---|
+| gemma3:12b-it-q4_K_M | 17.9 tok/s, 41%/59% CPU/GPU | 40.4 tok/s, fully resident | 56% lower |
+| qwen3:4b-fp16 | 19.1 tok/s, 36%/64% CPU/GPU | 44.0 tok/s, fully resident | 57% lower |
 
-Roughly 55% lower decode throughput once spilled. Models that fit are far closer:
-qwen3:4b-q4 measured 97.5 vs 102 tok/s, and on one reasoning case the RTX at Q8
-edged the Mac. The product-level reading is that when a workload fits, these two
-very different clients deliver broadly similar interactive decode performance;
-once the discrete-memory boundary is crossed, the experience changes sharply.
+Models that fit are far closer: qwen3:4b-q4_K_M measured 97.5 vs 101.8 tok/s on
+the same prompt, and on one reasoning case the RTX at Q8 edged the Mac.
+
+The product-level reading is that when a workload fits, these two very different
+clients deliver broadly similar interactive decode performance; once the
+discrete-memory boundary is crossed, the experience changes sharply.
 
 A further result: context capacity alone moves that boundary. qwen3:8b-q4_K_M is
 only 5.2 GB and stayed resident at 4K and 8K, then spilled at 16K and 32K on the
