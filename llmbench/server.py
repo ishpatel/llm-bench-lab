@@ -562,6 +562,10 @@ def make_handler(app: BenchServer):
 
 def serve(host: str, port: int, base_url: str, project_root: str) -> None:
     app = BenchServer(base_url=base_url, project_root=project_root)
+    # Probing the hardware costs a few hundred ms of subprocess calls and the
+    # result is cached for the process lifetime. Doing it here means the first
+    # page load reads a warm cache instead of paying for it.
+    threading.Thread(target=telemetry.describe_system_deep, daemon=True).start()
     httpd = ThreadingHTTPServer((host, port), make_handler(app))
     url = f"http://{host}:{port}"
     print(f"llmbench web UI → {url}")
