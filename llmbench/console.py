@@ -316,3 +316,74 @@ def _notes(cells: List[Dict[str, Any]], labels: List[str]) -> List[Tuple[str, st
 def print_summary(results: Dict[str, Any], stream=None) -> None:
     stream = stream or sys.stdout
     print(render_summary(results, color=use_color(stream)), file=stream)
+
+
+# --------------------------------------------------------------------------
+# Readiness
+# --------------------------------------------------------------------------
+# Same three words the web UI badges use, so a check reads identically
+# whichever surface someone is looking at.
+_STATUS_WORD = {"ok": "ready", "warn": "optional", "fail": "blocking"}
+_STATUS_STYLE = {"ok": "good", "warn": "ok", "fail": "bad"}
+
+
+def render_readiness(report: Dict[str, Any], system_label: str = "",
+                     verbose: bool = False, color: Optional[bool] = None,
+                     width: Optional[int] = None) -> str:
+    """Render the output of `readiness.describe_readiness` for a terminal."""
+    if color is None:
+        color = use_color()
+    if width is None:
+        width = shutil.get_terminal_size((100, 24)).columns
+    checks = report.get("checks") or []
+    out: List[str] = []
+
+    def add(text: str = "", style: str = "") -> None:
+        out.append(_paint(text, style, color) if style else text)
+
+    def wrapped(text: str, indent: int, style: str = "") -> None:
+        pad = " " * indent
+        for line in textwrap.wrap(text, max(30, width - indent)) or [text]:
+            add(pad + line, style)
+
+    add()
+    add("Bench readiness" + (f" on {system_label}" if system_label else ""), "bold")
+    wrapped("Whether this machine can run a benchmark: the software the harness "
+            "depends on, the models it needs, and somewhere to save results.",
+            0, "dim")
+    add()
+
+    # +3 covers the two brackets and a trailing space, so the widest tag
+    # ([blocking]) still clears the label column.
+    tag_w = max([len(w) for w in _STATUS_WORD.values()] or [8]) + 3
+    label_w = max([len(c.get("label", "")) for c in checks] or [0])
+    detail_col = 2 + tag_w + label_w + 2
+    for c in checks:
+        status = c.get("status", "warn")
+        tag = f"[{_STATUS_WORD.get(status, status)}]".ljust(tag_w)
+        # Wrap the detail under itself rather than under the tag, so the status
+        # column stays scannable. A long unbroken value (a URL) still overflows,
+        # which beats truncating something meant to be copied.
+        detail = textwrap.wrap(c.get("detail", ""),
+                               max(20, width - detail_col)) or [""]
+        add(f"  {_paint(tag, _STATUS_STYLE.get(status, ''), color)}"
+            f"{c.get('label', '').ljust(label_w)}  {detail[0]}")
+        for line in detail[1:]:
+            add(" " * detail_col + line)
+        # An explanation earns its place where something is wrong; on a healthy
+        # machine it is six paragraphs nobody reads.
+        if c.get("why") and (verbose or status != "ok"):
+            wrapped(c["why"], tag_w + 2, "dim")
+        if c.get("fix"):
+            wrapped(f"Fix: {c['fix']}", tag_w + 2, _STATUS_STYLE.get(status, ""))
+
+    add()
+    add(report.get("headline", ""), _STATUS_STYLE.get(report.get("state"), ""))
+    return "\n".join(out)
+
+
+def print_readiness(report: Dict[str, Any], system_label: str = "",
+                    verbose: bool = False, stream=None) -> None:
+    stream = stream or sys.stdout
+    print(render_readiness(report, system_label=system_label, verbose=verbose,
+                           color=use_color(stream)), file=stream)

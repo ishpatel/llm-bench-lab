@@ -81,8 +81,21 @@ exactly those distinctions.
 - Models pulled ahead of time (see each config's `models` list)
 - NVIDIA only (optional): `nvidia-smi` on PATH for live GPU telemetry
 
-`python bench.py info` reports what the harness detects on this machine and
-which models are installed. Run it first on a new system.
+`python bench.py doctor` checks all of it at once and exits non-zero if
+anything blocks a benchmark, so it can gate a campaign:
+
+```bash
+python bench.py doctor && python bench.py run configs/cross-system.json
+```
+
+It reports the Python version, a reachable Ollama, at least one model that can
+answer prompts, an embedding model for the retrieval features, a GPU backend,
+writable results storage, and on NVIDIA hosts `nvidia-smi` and TensorRT. Each
+check is marked `ready`, `optional` or `blocking` and carries the command that
+fixes it; `--verbose` explains the ones that are already fine too. The same
+checks appear under **Bench readiness** in the web UI.
+
+`python bench.py info` prints the raw detected system and model list.
 
 ### When something is missing
 
@@ -143,8 +156,8 @@ portable: copy a run folder between machines to merge history into one UI.
 ## CLI (batch / scripted use)
 
 ```bash
-# 1. See what the harness detects on this machine
-python bench.py info
+# 1. Check this machine can actually run a benchmark
+python bench.py doctor
 
 # 2. Run a benchmark config (writes results/<name>_<system>_<stamp>.json)
 #    The metrics print to the terminal as soon as the run finishes.
@@ -170,6 +183,7 @@ piped, and honours `NO_COLOR`.
 |---|---|
 | `serve` | Launch the interactive web UI (`--host`, `--port`) |
 | `info` | Print detected system + Ollama status and models |
+| `doctor` | Check dependencies + environment; exits 1 if anything blocks a run |
 | `run CONFIG` | Execute a benchmark config, print the metrics, write a results JSON |
 | `summary RESULTS...` | Re-print the metrics table for saved results files |
 | `report RESULTS...` | Build an HTML report; pass **multiple** files to compare systems |

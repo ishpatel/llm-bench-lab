@@ -46,7 +46,7 @@ def _engine_check(client, base_url: str, version: Optional[str]) -> Dict[str, st
     if client is None or not client.is_up():
         return _check("engine", "Ollama server", "fail",
                       f"not reachable at {base_url}",
-                      fix="Start it with `ollama serve`, then press Re-check.",
+                      fix="Start it with `ollama serve`, then check again.",
                       why="Ollama loads the models and serves the tokens that "
                           "every measurement is taken from.")
     return _check("engine", "Ollama server", "ok",

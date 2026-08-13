@@ -3,6 +3,7 @@
 
 Commands
     info                 Show detected system + Ollama status/models
+    doctor               Check dependencies + environment before benchmarking
     run   CONFIG         Run a benchmark config, write a results JSON
     report RESULTS...    Build an HTML report from one or more results files
 
@@ -58,6 +59,23 @@ def cmd_info(args: argparse.Namespace) -> int:
         for name, meta in ps.items():
             print(f"    - {name}: {meta.get('processor','')}")
     return 0
+
+
+def cmd_doctor(args: argparse.Namespace) -> int:
+    """Check the environment before a campaign. Exits non-zero when something
+    blocks a benchmark, so it can gate a run: `bench.py doctor && bench.py run`."""
+    from llmbench import readiness as readiness_mod
+    client = OllamaClient(base_url=args.base_url)
+    up = client.is_up()
+    deep = telemetry.describe_system_deep()
+    report = readiness_mod.describe_readiness(
+        client=client, base_url=args.base_url,
+        models=client.models_detailed() if up else [],
+        project_root=HERE, deep=deep)
+    console_mod.print_readiness(
+        report, system_label=telemetry.describe_system().get("label", ""),
+        verbose=args.verbose)
+    return 1 if report["state"] == "fail" else 0
 
 
 def _config_error(exc: Exception, args: argparse.Namespace) -> int:
@@ -366,6 +384,13 @@ def main(argv=None) -> int:
     pi = sub.add_parser("info", help="show system + Ollama status")
     with_base_url(pi)
     pi.set_defaults(func=cmd_info)
+
+    pdoc = sub.add_parser("doctor",
+                          help="check dependencies + environment for this machine")
+    with_base_url(pdoc)
+    pdoc.add_argument("--verbose", action="store_true",
+                      help="explain every check, not only the ones needing action")
+    pdoc.set_defaults(func=cmd_doctor)
 
     pr = sub.add_parser("run", help="run a benchmark config")
     with_base_url(pr)
