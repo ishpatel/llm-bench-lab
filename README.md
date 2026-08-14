@@ -60,10 +60,12 @@ you to score it on. Speed means nothing if the output is wrong.
 ![Run detail with metric verdicts, a machine chip and a four-dimension rating](docs/screenshots/01-run-detail.png)
 
 **Your hardware, and separately, whether the bench can run.** *What is this
-machine* and *can it produce a measurement* are different questions, so they get
-different sections.
+machine* and *can it produce a measurement* are different questions, so they are
+two panels that open and close independently. The bar across the top is the
+summary of both, so neither has to be open to see the machine you are on and
+whether it is ready.
 
-![System details panel above the bench readiness section](docs/screenshots/02-system.png)
+![System details panel expanded, with bench readiness collapsed beside it](docs/screenshots/02-system.png)
 
 **It checks itself before you benchmark.** Every dependency is probed live and
 marked **ready**, **optional** or **blocking**, with the command that fixes it.

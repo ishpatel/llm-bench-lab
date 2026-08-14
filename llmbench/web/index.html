@@ -33,9 +33,10 @@
   .brand h1 b{color:var(--accent)}
   .brand .tagline{display:block;font-size:11.5px;color:var(--muted);margin-top:-2px}
   .chipbar{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;align-items:center}
-  .hwchip{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);
+  .hwchip{cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);
     background:var(--card);border:1px solid var(--border);border-radius:20px;padding:4px 11px;white-space:nowrap}
   .hwchip b{color:var(--fg);font-weight:600}
+  .hwchip:hover{border-color:var(--accent)}
   .hwchip .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex:none}
   button.small{font-size:12px;padding:5px 11px}
 
@@ -53,7 +54,10 @@
   .syscard2 .line b{color:var(--fg);font-weight:600}
 
   /* ---------- bench readiness ---------- */
-  .rsection{margin-top:22px;padding-top:18px;border-top:1px solid var(--border)}
+  .drawertoggles{display:flex;gap:8px;flex-wrap:wrap;flex:none}
+  /* Two toggles plus the chip bar need the room, so the tagline is the first
+     thing to go on a narrow window rather than letting the brand wrap. */
+  @media (max-width:1040px){ .brand .tagline{display:none} }
   .rhead{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
   .rhead button{white-space:nowrap;flex:none}
   .rbanner{display:flex;align-items:center;gap:9px;font-weight:650;font-size:13px;
@@ -278,27 +282,33 @@
 <header>
   <div class="brand"><h1><b>llm</b>bench</h1><span class="tagline">Local AI Benchmarking Lab</span></div>
   <div class="chipbar" id="sysChips"><span class="hint">detecting hardware…</span></div>
-  <button class="ghost small" id="sysToggle">System details ▾</button>
+  <div class="drawertoggles">
+    <button class="ghost small" id="sysToggle" data-drawer="sysDrawer">System details ▾</button>
+    <button class="ghost small" id="readyToggle" data-drawer="readyDrawer">Bench readiness ▾</button>
+  </div>
 </header>
+
 <div class="sysdrawer" id="sysDrawer" style="display:none">
   <div class="inner">
     <h2>System details</h2>
     <p class="lead">The hardware this machine has. Everything runs 100% locally, so no data leaves
       the device. The GPU does the heavy lifting for AI inference; memory determines which models fit.</p>
     <div class="sysgrid" id="sysGrid"></div>
+  </div>
+</div>
 
-    <section class="rsection">
-      <div class="rhead">
-        <div>
-          <h2>Bench readiness</h2>
-          <p class="lead">Whether this machine can actually run a benchmark: the software the harness
-            depends on, the models it needs, and somewhere to save results. Checked live, not assumed.</p>
-        </div>
-        <button class="ghost small" id="readyRecheck">Re-check</button>
+<div class="sysdrawer" id="readyDrawer" style="display:none">
+  <div class="inner">
+    <div class="rhead">
+      <div>
+        <h2>Bench readiness</h2>
+        <p class="lead">Whether this machine can actually run a benchmark: the software the harness
+          depends on, the models it needs, and somewhere to save results. Checked live, not assumed.</p>
       </div>
-      <div id="readyBanner" class="rbanner"><span class="hint">checking…</span></div>
-      <div class="readygrid" id="readyGrid"></div>
-    </section>
+      <button class="ghost small" id="readyRecheck">Re-check</button>
+    </div>
+    <div id="readyBanner" class="rbanner"><span class="hint">checking…</span></div>
+    <div class="readygrid" id="readyGrid"></div>
   </div>
 </div>
 
@@ -727,11 +737,37 @@ document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
 });
 
 /* ---------------- system panel ---------------- */
-$('#sysToggle').onclick=()=>{
-  const d=$('#sysDrawer');const open=d.style.display!=='none';
-  d.style.display=open?'none':'';
-  $('#sysToggle').textContent=open?'System details ▾':'System details ▴';
-};
+/* ---------------- header drawers ---------------- */
+// Two panels that open and close independently. The chip bar above them is the
+// always-visible summary of both, so neither has to be open to see whether the
+// machine is what you expect and whether it can run.
+const DRAWERS={sysDrawer:{btn:'#sysToggle',label:'System details'},
+               readyDrawer:{btn:'#readyToggle',label:'Bench readiness'}};
+
+function setDrawer(id,open){
+  const d=$('#'+id),meta=DRAWERS[id];if(!d||!meta)return;
+  d.style.display=open?'':'none';
+  $(meta.btn).textContent=`${meta.label} ${open?'▴':'▾'}`;
+  $(meta.btn).setAttribute('aria-expanded',open?'true':'false');
+  try{localStorage.setItem('llmbench.'+id,open?'1':'0');}catch(e){}
+}
+function toggleDrawer(id){setDrawer(id,$('#'+id).style.display==='none');}
+function openDrawer(id){setDrawer(id,true);}
+
+Object.keys(DRAWERS).forEach(id=>{
+  $(DRAWERS[id].btn).onclick=()=>toggleDrawer(id);
+  // Reopen whatever was open last time. Readiness re-initialises the app after
+  // a fix, and losing your place on every refresh would be its own annoyance.
+  let saved=null;try{saved=localStorage.getItem('llmbench.'+id);}catch(e){}
+  setDrawer(id,saved==='1');
+});
+
+// The chips are the summary of each panel, so clicking one opens the panel it
+// summarises rather than being decoration next to a button that does.
+$('#sysChips').addEventListener('click',e=>{
+  if(e.target.closest('#readyChip'))return;          // has its own handler
+  if(e.target.closest('.hwchip'))openDrawer('sysDrawer');
+});
 function renderSystem(){
   const d=state.deep;if(!d)return;
   const cpu=d.cpu||{},gpu=d.gpu||{},npu=d.npu||{},mem=d.memory||{},env=d.env||{};
@@ -833,7 +869,7 @@ function renderReadyChip(r){
   el.innerHTML=`<span class="dot" style="background:${col}"></span><b style="color:${col}">${esc(word)}</b>`;
   el.title=r.headline+'. Open System details for the full list.';
   el.style.cursor='pointer';
-  el.onclick=()=>{if($('#sysDrawer').style.display==='none')$('#sysToggle').click();
+  el.onclick=()=>{openDrawer('readyDrawer');
     $('#readyBanner').scrollIntoView({behavior:'smooth',block:'center'});};
 }
 $('#readyRecheck').onclick=loadReadiness;
