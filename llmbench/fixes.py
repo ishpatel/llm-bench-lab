@@ -21,7 +21,9 @@ from __future__ import annotations
 import shlex
 import subprocess
 import sys
+import tempfile
 import threading
+import time
 from collections import OrderedDict, deque
 from typing import Any, Deque, Dict, Optional
 
@@ -38,6 +40,7 @@ class FixRun:
         self.exit_code: Optional[int] = None
         self.error: Optional[str] = None
         self.lines: Deque[str] = deque(maxlen=MAX_OUTPUT_LINES)
+        self.log_path = ""
         self._lock = threading.Lock()
 
     def append(self, line: str) -> None:
@@ -75,19 +78,26 @@ class FixRunner:
             run.state, run.error = "error", "empty command"
             return run
 
-        # A new session/process group means a server the user starts this way
-        # outlives llmbench itself, which is what someone pressing "Run" on
-        # `ollama serve` expects: they are starting Ollama, not lending it ours.
+        # A new session detaches the child from our process group, so quitting
+        # llmbench does not signal it.
         kwargs: Dict[str, Any] = {}
         if sys.platform == "win32":
             kwargs["creationflags"] = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
         else:
             kwargs["start_new_session"] = True
 
+        # Output goes to a temp file rather than a pipe. A pipe dies with us:
+        # when llmbench exits, the read end closes and the child is killed by
+        # SIGPIPE on its next log line. Measured that happening to a server
+        # started this way. A file descriptor stays valid after we are gone, so
+        # `ollama serve` keeps running and keeps logging.
         try:
+            log = tempfile.NamedTemporaryFile(
+                prefix="llmbench-fix-", suffix=".log", delete=False)
+            run.log_path = log.name
             proc = subprocess.Popen(
-                argv, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                text=True, bufsize=1, **kwargs)
+                argv, stdout=log, stderr=subprocess.STDOUT, **kwargs)
+            log.close()
         except OSError as exc:
             run.state = "error"
             run.error = f"could not start {argv[0]}: {exc.strerror or exc}"
@@ -98,15 +108,29 @@ class FixRunner:
         return run
 
     @staticmethod
-    def _pump(run: FixRun, proc: "subprocess.Popen[str]") -> None:
+    def _pump(run: FixRun, proc: "subprocess.Popen[bytes]") -> None:
+        """Tail the log file while the process runs, so the UI sees output live
+        without holding a pipe the child depends on."""
         try:
-            if proc.stdout is not None:
-                for line in proc.stdout:
+            pos = 0
+            while True:
+                alive = proc.poll() is None
+                try:
+                    with open(run.log_path, "r", encoding="utf-8",
+                              errors="replace") as f:
+                        f.seek(pos)
+                        chunk = f.read()
+                        pos = f.tell()
+                except OSError:
+                    chunk = ""
+                for line in chunk.splitlines():
                     run.append(line)
-            proc.wait()
+                if not alive:
+                    break
+                time.sleep(0.4)
             run.exit_code = proc.returncode
-            # A long-running server (`ollama serve`) only reaches here when it
-            # exits, so a non-zero code here is a real failure either way.
+            # A long-running server only reaches here when it exits, so a
+            # non-zero code is a real failure either way.
             run.state = "done" if proc.returncode == 0 else "error"
             if proc.returncode:
                 run.error = f"exited with code {proc.returncode}"

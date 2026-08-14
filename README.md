@@ -86,6 +86,10 @@ a web page should not be able to talk this machine into elevating privileges.
 The endpoint also refuses any request that did not come from llmbench's own
 page, so another site cannot drive it while you have llmbench open.
 
+A server started this way is genuinely yours: it runs detached, keeps running
+after you close llmbench, and the app reloads itself once the environment is
+repaired, so the model list and the Run button come back without a refresh.
+
 **History, labelled by machine.** One history can hold runs from several
 machines, so each row carries a colour-coded chip and the list filters by
 machine. Sorted by speed the machines interleave, which is exactly when an

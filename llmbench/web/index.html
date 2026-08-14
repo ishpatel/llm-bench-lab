@@ -802,6 +802,14 @@ async function loadReadiness(){
     // last reported. Otherwise a result vanishes the moment the check refreshes.
     Object.keys(state.fixOut).forEach(k=>paintFix(k,state.fixOut[k]));
     renderReadyChip(r);
+    // Starting Ollama from here has to leave the app usable. The page booted
+    // with no models, an empty picker and a disabled Run button; without this
+    // the user fixes the environment, is told they are ready, and still has to
+    // reload by hand. Re-init only on the down -> up edge, so a machine with no
+    // models installed does not loop.
+    const engineOk=(r.checks||[]).some(c=>c.key==='engine'&&c.status==='ok');
+    if(engineOk&&state.engineUp===false){state.engineUp=true;init();return;}
+    state.engineUp=engineOk;
   }catch(e){
     banner.className='rbanner fail';
     banner.innerHTML='<span class="dot"></span><span>Could not run the readiness checks.</span>';
@@ -951,6 +959,10 @@ async function init(){
         $('#modelCaps').innerHTML='<b style="color:var(--bad)">No models available to '
           +'benchmark.</b>'+had+' Install one with <code>ollama pull qwen3:4b-q4_K_M</code>, '
           +'then press Refresh.';
+      }else{
+        // init() re-runs after the environment is repaired, so this has to undo
+        // an earlier disable rather than assume it was never set.
+        $('#submit').disabled=false;
       }
     }
   }catch(e){$('#sysChips').innerHTML='<span class="hwchip" style="color:var(--bad)">API error</span>';}
