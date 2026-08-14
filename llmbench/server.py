@@ -6,6 +6,7 @@ small JSON API that drives the existing Runner/attachments/extract stack:
     GET  /                      the UI
     GET  /api/models            locally installed Ollama models + system info
     GET  /api/readiness         dependency + environment checks for this machine
+    POST /api/readiness/fix     run one suggested fix (same-origin, allowlisted)
     POST /api/runs              start a benchmark run -> {id}; runs in the queue
     GET  /api/jobs/<id>         live job state + progress log (UI polls this)
     GET  /api/runs              all saved runs (summaries) for the master view
@@ -27,6 +28,7 @@ from urllib.parse import parse_qs, urlparse
 
 from . import evals as evals_mod
 from . import guardrails
+from . import fixes as fixes_mod
 from . import rag as rag_mod
 from . import readiness
 from . import report as report_mod
@@ -84,6 +86,7 @@ class BenchServer:
         self.store = RunStore(os.path.join(project_root, "runs"))
         self.rag = RagStore(os.path.join(project_root, "kb"))
         self.jobs = JobManager()
+        self.fixes = fixes_mod.FixRunner()
         self._seq = 0
         self._seq_lock = threading.Lock()
 
@@ -336,6 +339,21 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def _same_origin(self) -> bool:
+        """True when the request came from this server's own page.
+
+        Browsers attach Origin to every cross-origin POST, so requiring it to
+        match our own Host stops another site from driving this API while the
+        user has llmbench open. Requests with no Origin at all (curl, scripts)
+        are rejected here too: this guard is only used on the endpoint that
+        executes commands, where a deliberate CLI caller has no business.
+        """
+        origin = self.headers.get("Origin") or ""
+        if not origin:
+            return False
+        host = self.headers.get("Host") or ""
+        return origin.split("//", 1)[-1] == host
+
     def _read_json(self) -> Dict[str, Any]:
         n = int(self.headers.get("Content-Length", 0))
         raw = self.rfile.read(n) if n else b"{}"
@@ -374,6 +392,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"kb": app.rag.list()})
             if path == "/api/system":
                 return self._json(telemetry.describe_system_deep())
+            if path.startswith("/api/readiness/fix/"):
+                run = app.fixes.get(path.rsplit("/", 1)[-1])
+                if run is None:
+                    return self._json({"error": "no such fix run"}, code=404)
+                return self._json(run.snapshot())
             if path == "/api/readiness":
                 up = app.client.is_up()
                 return self._json(readiness.describe_readiness(
@@ -415,6 +438,14 @@ class Handler(BaseHTTPRequestHandler):
         app = self.server_app
         path = urlparse(self.path).path
         try:
+            if path == "/api/readiness/fix":
+                # Executes a command on this machine: same-origin only.
+                if not self._same_origin():
+                    return self._json(
+                        {"error": "cross-origin requests cannot run commands"},
+                        code=403)
+                key = str(self._read_json().get("key", ""))
+                return self._run_fix(key)
             if path == "/api/runs":
                 payload = self._read_json()
                 if not payload.get("model"):
@@ -535,6 +566,26 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+    def _run_fix(self, key: str):
+        """Look the command up from a freshly computed readiness report, so what
+        runs is always this server's own suggestion for the machine's current
+        state, never a string supplied by the caller."""
+        app = self.server_app
+        up = app.client.is_up()
+        report = readiness.describe_readiness(
+            client=app.client, base_url=app.base_url,
+            models=app.client.models_detailed() if up else [],
+            project_root=app.project_root)
+        check = next((c for c in report["checks"] if c["key"] == key), None)
+        if check is None:
+            return self._json({"error": f"unknown check '{key}'"}, code=404)
+        if not check.get("runnable") or not check.get("cmd"):
+            return self._json(
+                {"error": f"'{check['label']}' is not a command this server "
+                          "will run; copy it and run it yourself"}, code=400)
+        run = app.fixes.start(key, check["cmd"])
+        return self._json(run.snapshot())
 
     def _cross_report(self, ids: List[str]) -> None:
         """Merge several runs' results into one grouped-by-system report."""

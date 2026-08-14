@@ -22,11 +22,35 @@ from . import telemetry
 
 MIN_PYTHON = (3, 9)
 
+# The checks describe the machine the server is running on, so the fix commands
+# are resolved for that machine's OS here rather than shipping all three
+# variants to the browser and guessing there.
+if sys.platform == "darwin":
+    OS_KEY, OS_NAME = "macos", "macOS"
+elif sys.platform.startswith("win"):
+    OS_KEY, OS_NAME = "windows", "Windows"
+else:
+    OS_KEY, OS_NAME = "linux", "Linux"
+
+
+def _for_os(choices: Dict[str, str]) -> str:
+    """Pick this machine's variant, falling back to a shared default."""
+    return choices.get(OS_KEY, choices.get("all", ""))
+
+
+# Only these may be executed by the server on request. Everything else is
+# copy-only: anything needing sudo, an admin prompt, a package manager or a
+# download stays the user's decision to run themselves, in their own shell.
+RUNNABLE = {"engine", "models", "embedding"}
+
 
 def _check(key: str, label: str, status: str, detail: str,
-           fix: str = "", why: str = "") -> Dict[str, str]:
+           fix: str = "", why: str = "", cmd: str = "") -> Dict[str, Any]:
+    """`fix` is prose for a human; `cmd` is a literal command to copy or run.
+    A check may have either, both, or neither."""
     return {"key": key, "label": label, "status": status, "detail": detail,
-            "fix": fix, "why": why}
+            "fix": fix, "why": why, "cmd": cmd,
+            "runnable": bool(cmd) and key in RUNNABLE, "os": OS_NAME}
 
 
 def _python_check() -> Dict[str, str]:
@@ -38,6 +62,11 @@ def _python_check() -> Dict[str, str]:
                       why=f"The harness is stdlib-only and needs {need} or newer.")
     return _check("python", "Python runtime", "fail", f"{got}, below {need}",
                   fix=f"Install Python {need} or newer and re-run from it.",
+                  cmd=_for_os({
+                      "macos": "brew install python@3.12",
+                      "windows": "winget install Python.Python.3.12",
+                      "linux": "sudo apt install python3",
+                  }),
                   why="The harness is stdlib-only, but relies on "
                       f"{need}+ language features.")
 
@@ -46,7 +75,13 @@ def _engine_check(client, base_url: str, version: Optional[str]) -> Dict[str, st
     if client is None or not client.is_up():
         return _check("engine", "Ollama server", "fail",
                       f"not reachable at {base_url}",
-                      fix="Start it with `ollama serve`, then check again.",
+                      fix="Start the Ollama server, then check again.",
+                      cmd=_for_os({
+                          # Identical on every platform. A Linux box running it
+                          # as a service wants systemctl, but `ollama serve` in
+                          # the foreground works there too and needs no sudo.
+                          "all": "ollama serve",
+                      }),
                       why="Ollama loads the models and serves the tokens that "
                           "every measurement is taken from.")
     return _check("engine", "Ollama server", "ok",
@@ -76,13 +111,15 @@ def _model_checks(models: List[Dict[str, Any]], engine_ok: bool) -> List[Dict[st
         only_emb = " Only embedding models are present." if emb else ""
         out.append(_check("models", "Models installed", "fail",
                           f"none available to benchmark.{only_emb}",
-                          fix="ollama pull qwen3:4b-q4_K_M",
+                          fix="Pull a model that can answer prompts.",
+                          cmd="ollama pull qwen3:4b-q4_K_M",
                           why="A benchmark needs at least one model that "
                               "answers prompts."))
     out.append(_check(
         "embedding", "Embedding model", "ok" if emb else "warn",
         f"{emb[0]['name']}" if emb else "none installed",
-        fix="" if emb else "ollama pull embeddinggemma",
+        fix="" if emb else "Pull an embedding model to enable retrieval.",
+        cmd="" if emb else "ollama pull embeddinggemma",
         why="Only the Copilot and Evals tabs need one, to turn documents into "
             "vectors for retrieval. Benchmarks run without it."))
     return out
@@ -115,7 +152,12 @@ def _nvidia_checks(deep: Dict[str, Any]) -> List[Dict[str, str]]:
         "nvsmi", "nvidia-smi", "ok" if telemetry.has_nvidia_smi() else "warn",
         "on PATH" if telemetry.has_nvidia_smi() else "not on PATH",
         fix="" if telemetry.has_nvidia_smi() else
-            "Install the NVIDIA driver, or add nvidia-smi to PATH.",
+            "Install the NVIDIA driver, or put nvidia-smi on PATH.",
+        cmd="" if telemetry.has_nvidia_smi() else _for_os({
+            "windows": r'setx PATH "%PATH%;C:\Program Files\NVIDIA Corporation\NVSMI"',
+            "linux": "sudo apt install nvidia-utils-535",
+            "macos": "",
+        }),
         why="Supplies live GPU utilisation and VRAM during a run. Timing "
             "measurements do not depend on it.")]
     ver = trt.get("python_tensorrt")
@@ -142,6 +184,10 @@ def _storage_check(project_root: str) -> Dict[str, str]:
         return _check("storage", "Results storage", "fail",
                       f"cannot write to {runs} ({exc.strerror or exc})",
                       fix="Grant write permission to the project directory.",
+                      cmd=_for_os({
+                          "windows": f'icacls "{runs}" /grant "%USERNAME%":(OI)(CI)F',
+                          "all": f'chmod u+w "{runs}"',
+                      }),
                       why="Every run is saved here; without it a finished "
                           "benchmark cannot be kept.")
     free_gb = None

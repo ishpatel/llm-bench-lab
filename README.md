@@ -72,6 +72,20 @@ benchmarks still run.
 
 ![Bench readiness catching an unreachable Ollama, with fixes](docs/screenshots/09-readiness.png)
 
+Each fix comes with the exact command for **this** machine's OS, resolved
+server-side because the server is running on the machine the command has to work
+on. **Copy** puts it on the clipboard; **Run** executes it here and streams the
+output back inline.
+
+Run is deliberately narrow. The browser sends a check *key*, never a command
+string, and the server executes only the command it generated itself for the
+current state of the machine, split into arguments with no shell involved. Only
+starting Ollama and pulling a model are eligible. Anything wanting sudo, an
+administrator prompt, a package manager or a download stays copy-only, because
+a web page should not be able to talk this machine into elevating privileges.
+The endpoint also refuses any request that did not come from llmbench's own
+page, so another site cannot drive it while you have llmbench open.
+
 **History, labelled by machine.** One history can hold runs from several
 machines, so each row carries a colour-coded chip and the list filters by
 machine. Sorted by speed the machines interleave, which is exactly when an

@@ -376,6 +376,11 @@ def render_readiness(report: Dict[str, Any], system_label: str = "",
             wrapped(c["why"], tag_w + 2, "dim")
         if c.get("fix"):
             wrapped(f"Fix: {c['fix']}", tag_w + 2, _STATUS_STYLE.get(status, ""))
+        if c.get("cmd"):
+            # Prompt character matches the shell the reader is actually in, and
+            # the command itself is left unwrapped so it can be copied whole.
+            prompt = ">" if os.name == "nt" else "$"
+            add(" " * (tag_w + 2) + f"{prompt} {c['cmd']}", "bold")
 
     add()
     add(report.get("headline", ""), _STATUS_STYLE.get(report.get("state"), ""))

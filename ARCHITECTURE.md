@@ -203,7 +203,7 @@ number carries a plain-English verdict and the page includes a "how to read
 these numbers" glossary, because a report a non-expert cannot read is a report
 that does not travel.
 
-### `readiness.py` and `console.py`
+### `readiness.py`, `fixes.py` and `console.py`
 
 `telemetry.py` answers *what hardware is this*. `readiness.py` answers the
 different question *can this machine run a benchmark*, and keeping them apart is
@@ -213,6 +213,18 @@ GPU backend, writable storage, and on NVIDIA hosts `nvidia-smi` and TensorRT,
 grading each `ok` / `warn` / `fail` with the command that fixes it. Both the web
 UI (`GET /api/readiness`) and `bench.py doctor` render the same structure, so
 the two surfaces cannot disagree about what "ready" means.
+
+`fixes.py` executes the remediation commands the checks suggest, which is the
+one place a browser can cause something to run on the machine. Three rules keep
+that narrow: the client sends a check *key* and never a command string, so what
+runs is always the server's own suggestion for the current state; only
+`readiness.RUNNABLE` keys are eligible, which excludes everything wanting sudo,
+an admin prompt or a package manager; and the argv is executed directly with no
+shell, so metacharacters have nothing to act on. `server.py` adds a same-origin
+requirement on that endpoint, since without one any website could POST to
+localhost while the user has llmbench open. A useful side effect of deriving the
+command from live state: a check that currently passes has no command, so
+nothing can be run for it.
 
 `console.py` renders results and readiness for a terminal. It imports its
 verdict wording from `report.py` rather than restating it, which is what stops
@@ -400,6 +412,7 @@ A map for the most likely reasons to open this code:
 | Retrieval quality | `rag.py` (chunk size, `k`, the grounded prompt) | Chunking is where the known CSV failure lives |
 | What the agent may do | `guardrails.py` | Rails are deterministic on purpose; do not move a decision into the prompt |
 | An environment check | `readiness.py` | Both the web UI and `bench.py doctor` render whatever you add |
+| Making a fix runnable | `readiness.RUNNABLE` | Only add commands that need no elevated rights; the rest stay copy-only |
 | The UI | `web/index.html` | One file, no build step; keep it that way |
 
 ## What is deliberately not here

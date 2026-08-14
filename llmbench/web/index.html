@@ -80,8 +80,24 @@
   .rcard.fail .rdetail{color:var(--bad)}
   .rcard .rwhy{font-size:11.5px;color:var(--muted);margin-top:5px;line-height:1.45}
   .rcard .rfix{margin-top:7px;font-size:11.5px;color:var(--muted)}
-  .rcard .rfix code{background:var(--card);border:1px solid var(--border);border-radius:4px;
-    padding:1px 5px;font-size:11px;color:var(--fg)}
+  .cmdbox{margin-top:8px;background:var(--card);border:1px solid var(--border);
+    border-radius:var(--radius);overflow:hidden}
+  .cmdbox .cmdline{display:flex;align-items:center;gap:8px;padding:7px 9px}
+  .cmdbox code{flex:1;font-size:11.5px;color:var(--fg);white-space:pre-wrap;
+    word-break:break-all;line-height:1.4}
+  .cmdbox .btn{font:inherit;font-size:11px;font-weight:600;padding:4px 9px;border-radius:5px;
+    border:1px solid var(--border);background:var(--bg);color:var(--fg);cursor:pointer;
+    white-space:nowrap;flex:none}
+  .cmdbox .btn:hover{border-color:var(--accent);color:var(--accent)}
+  .cmdbox .btn.run{border-color:rgba(118,185,0,.4);color:var(--good)}
+  .cmdbox .btn.run:hover{background:rgba(118,185,0,.12)}
+  .cmdbox .btn:disabled{opacity:.5;cursor:default;border-color:var(--border);color:var(--muted)}
+  .cmdbox .cmdnote{padding:0 9px 7px;font-size:10.5px;color:var(--muted)}
+  .rout{margin-top:8px}
+  .rout pre{margin:0;padding:8px 10px;background:#000;border:1px solid var(--border);
+    border-radius:var(--radius);font-size:11px;line-height:1.45;color:#cfd6dd;
+    max-height:180px;overflow:auto;white-space:pre-wrap}
+  .rout .status{font-size:11px;margin-bottom:4px;font-weight:600}
 
   /* ---------- nav ---------- */
   nav{display:flex;gap:2px;padding:0 20px;border-bottom:1px solid var(--border);
@@ -773,12 +789,18 @@ async function loadReadiness(){
     if(r.counts.warn)counts.push(`${r.counts.warn} optional`);
     banner.innerHTML=`<span class="dot"></span><span>${esc(r.headline)}</span>`
       +(counts.length?`<span class="hint" style="margin-left:auto;font-weight:400">${counts.join(' · ')}</span>`:'');
+    state.fixOut=state.fixOut||{};
     grid.innerHTML=r.checks.map(c=>`<div class="rcard ${c.status}">
       <div class="rtop">${esc(c.label)}<span class="badge">${c.status==='ok'?'ready':c.status==='warn'?'optional':'blocking'}</span></div>
       <div class="rdetail">${esc(c.detail)}</div>
       ${c.why?`<div class="rwhy">${esc(c.why)}</div>`:''}
-      ${c.fix?`<div class="rfix">Fix: ${/^[a-z-]+ [a-z0-9:._-]+$/i.test(c.fix)?`<code>${esc(c.fix)}</code>`:esc(c.fix)}</div>`:''}
+      ${c.fix?`<div class="rfix">Fix: ${esc(c.fix)}</div>`:''}
+      ${c.cmd?fixCmdBlock(c):''}
+      <div class="rout" id="rout-${esc(c.key)}"></div>
     </div>`).join('');
+    // Re-rendering the grid wipes the output panels, so restore what each fix
+    // last reported. Otherwise a result vanishes the moment the check refreshes.
+    Object.keys(state.fixOut).forEach(k=>paintFix(k,state.fixOut[k]));
     renderReadyChip(r);
   }catch(e){
     banner.className='rbanner fail';
@@ -807,6 +829,88 @@ function renderReadyChip(r){
     $('#readyBanner').scrollIntoView({behavior:'smooth',block:'center'});};
 }
 $('#readyRecheck').onclick=loadReadiness;
+
+// A fix is shown as the literal command for this machine's OS, resolved by the
+// server (which is the machine the command has to run on). Copy always works;
+// Run is offered only for the few commands the server will execute, and even
+// then it posts a check *key*, never this string.
+function fixCmdBlock(c){
+  const id=esc(c.key);
+  return `<div class="cmdbox">
+    <div class="cmdline">
+      <code id="cmd-${id}">${esc(c.cmd)}</code>
+      <button class="btn" data-copy="${id}">Copy</button>
+      ${c.runnable?`<button class="btn run" data-run="${id}">Run</button>`:''}
+    </div>
+    <div class="cmdnote">${c.runnable
+      ? `Runs on this machine (${esc(c.os||'')}). Or copy it into your own terminal.`
+      : `Needs elevated rights, so copy it into your own terminal (${esc(c.os||'')}).`}</div>
+  </div>`;
+}
+
+async function copyCmd(key){
+  const text=$('#cmd-'+CSS.escape(key)).textContent;
+  const btn=document.querySelector(`[data-copy="${CSS.escape(key)}"]`);
+  try{
+    await navigator.clipboard.writeText(text);
+  }catch(e){
+    // Clipboard API needs a secure context; over plain http on a non-localhost
+    // host it throws, so fall back to a selection the user can copy manually.
+    const r=document.createRange();r.selectNode($('#cmd-'+CSS.escape(key)));
+    const sel=getSelection();sel.removeAllRanges();sel.addRange(r);
+    let ok=false;try{ok=document.execCommand('copy');}catch(_){}
+    sel.removeAllRanges();
+    if(!ok){btn.textContent='Select it';setTimeout(()=>btn.textContent='Copy',1600);return;}
+  }
+  btn.textContent='Copied';setTimeout(()=>btn.textContent='Copy',1400);
+}
+
+function paintFix(key,r){
+  state.fixOut=state.fixOut||{};state.fixOut[key]=r;
+  const out=$('#rout-'+CSS.escape(key));if(!out)return;
+  const cls=r.state==='done'?'good':r.state==='error'?'bad':'ok';
+  const label=r.state==='running'?'running…'
+    :r.state==='done'?'finished':(r.error||'failed');
+  out.innerHTML=`<div class="status" style="color:var(--${cls})">${esc(label)}</div>`
+    +(r.output&&r.output.length?`<pre>${esc(r.output.join('\n'))}</pre>`:'');
+}
+
+async function runFix(key){
+  const btn=document.querySelector(`[data-run="${CSS.escape(key)}"]`);
+  const out=$('#rout-'+CSS.escape(key));
+  btn.disabled=true;btn.textContent='Running…';
+  const paint=r=>paintFix(key,r);
+  let res;
+  try{
+    res=await fetch('/api/readiness/fix',{method:'POST',
+      headers:{'Content-Type':'application/json'},body:JSON.stringify({key})}).then(r=>r.json());
+  }catch(e){res={error:'could not reach the server'};}
+  if(res.error){
+    paintFix(key,{state:'error',error:res.error,output:[]});
+    btn.disabled=false;btn.textContent='Run';return;
+  }
+  paint(res);
+  // Poll until it finishes. A server started this way stays "running" on
+  // purpose, so re-check readiness once it is actually answering.
+  let settled=false;
+  for(let i=0;i<150;i++){
+    await new Promise(r=>setTimeout(r,700));
+    let st;try{st=await fetch('/api/readiness/fix/'+res.id).then(r=>r.json());}catch(e){break;}
+    paint(st);
+    if(st.state!=='running'){settled=true;break;}
+    if(i===2||i%8===0){                 // long-running: has it fixed the problem yet?
+      const rd=await fetch('/api/readiness').then(r=>r.json()).catch(()=>null);
+      if(rd&&(rd.checks||[]).some(c=>c.key===key&&c.status==='ok')){settled=true;break;}
+    }
+  }
+  btn.disabled=false;btn.textContent='Run again';
+  if(settled)loadReadiness();
+}
+
+document.addEventListener('click',e=>{
+  const c=e.target.closest('[data-copy]');if(c)return copyCmd(c.dataset.copy);
+  const r=e.target.closest('[data-run]');if(r)return runFix(r.dataset.run);
+});
 
 /* ---------------- init ---------------- */
 async function init(){
