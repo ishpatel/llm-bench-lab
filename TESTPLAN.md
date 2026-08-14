@@ -410,11 +410,11 @@ For each phase, in your own notes, not just in the tool:
 | Hypothesis, written before the run | Prevents rewriting expectations after the fact |
 | The measured result | Including the runs that did nothing interesting |
 | Whether it matched, and by how much | The gap is the finding |
-| What surprised you | This is what an interviewer actually wants |
+| What surprised you | The gap between expectation and result is the finding worth reporting |
 
-## The four sentences you are trying to be able to say
+## What a completed campaign should let you state
 
-1. Quantization bought me *X* on this hardware, and cost me *Y* in quality.
+1. Quantization bought *X* on this hardware, and cost *Y* in quality.
 2. The 8 GB boundary appeared at *Z*, which was not the model's file size,
    because weights are not the only memory consumer.
 3. Unified memory and discrete VRAM failed in different places, so the honest

@@ -423,7 +423,9 @@ def main(argv=None) -> int:
 
     pev = sub.add_parser("eval", help="run an evaluation suite (rag | guardrails)")
     with_base_url(pev)
-    pev.add_argument("suite", help="'rag', 'guardrails', or a path to a suite JSON")
+    pev.add_argument("suite", help="suite name matching evals/<name>_tests.json "
+                                   "('rag', 'guardrails', 'life_lab'), or a path "
+                                   "to a suite JSON")
     pev.add_argument("--model", default=None, help="override answer model")
     pev.set_defaults(func=cmd_eval)
 

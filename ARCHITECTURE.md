@@ -1,16 +1,21 @@
 # Architecture
 
-How llm-bench-lab is put together, and why each decision was made. Roughly
-5,300 lines across 17 files, standard library only.
+How llm-bench-lab is put together, and why each decision was made. About 6,500
+lines: 5,000 of Python across 18 modules plus a 1,500-line single-page UI, on the
+standard library alone.
 
-## The thesis
+This document assumes you have read the [README](README.md) and want to know how
+it works underneath, or are considering changing something.
 
-**The model is one component of an AI product, not the product.** Model quality,
-quantization, memory residency, retrieval quality, harness design, guardrails
-and evaluation all shape what the user actually experiences. So this tool
-measures the whole system, and every layer stays transparent enough to explain.
+## The idea the design serves
 
-Three constraints fall out of that thesis, and they explain most of the design.
+A model's speed is not the same thing as a product's behaviour. Quantization,
+memory residency, retrieval quality, the harness around the model, the rails
+around the harness, and how any of it is evaluated all shape what a person
+actually experiences. So this tool measures the whole path rather than one number
+at the centre of it, and every layer stays readable enough to defend.
+
+Three constraints follow from that, and they explain most of what is here.
 
 ### 1. Zero third-party dependencies
 
@@ -60,10 +65,13 @@ choice can be defended rather than attributed to a library.
                     │+ matrix   │ │       │ │        │ │         │
                     └──┬───┬────┘ └──┬────┘ └───┬────┘ └─────────┘
                        │   │         │          │
-  Shared         ┌─────▼┐ ┌▼─────────▼┐ ┌───────▼─────┐ ┌──────────┐
-  services       │config│ │attachments│ │guardrails.py│ │telemetry │
-                 │  .py │ │+ extract  │ │             │ │   .py    │
-                 └──────┘ └───────────┘ └─────────────┘ └──────────┘
+  Shared         ┌─────▼┐ ┌▼─────────▼┐ ┌───────▼─────┐ ┌──────────────┐
+  services       │config│ │attachments│ │guardrails.py│ │  telemetry   │
+                 │  .py │ │+ extract  │ │             │ │ + readiness  │
+                 └──────┘ └───────────┘ └─────────────┘ └──────────────┘
+                                                    console.py renders
+                                                    results + readiness
+                                                    for the terminal
 
   Engine              ┌──────────────────────────────────┐
   contract            │ ollama.py     |    backends.py    │
@@ -243,7 +251,62 @@ answer with `[n]` citations or an honest abstention.
 Embeddings are stored unit-normalized at build time, so a query is a dot product
 with no per-comparison square root, with a cosine fallback for older indexes.
 
-### Finding: the retrieval rail, and what it cost
+### `agent.py` and `guardrails.py`
+
+The principle made literal: **the model proposes, deterministic code
+authorizes.** `agent.py` runs a model -> tool -> observation loop over native
+tool calling. `guardrails.py` is five plain-Python rails: input
+(prompt-injection and disallowed intent), tool allowlist (least privilege),
+parameter (type and bounds), approval (human-in-the-loop for consequential
+actions), and output (secret leakage).
+
+The model may request `set_power_limit(150)`. The parameter rail rejects it
+because 150 falls outside 80-115, and no amount of model confidence changes
+that. Guardrails are deterministic precisely because the thing they guard is
+probabilistic.
+
+### `evals.py`
+
+Two suites: RAG groundedness and abstention, and adversarial guardrail
+enforcement scored on outcome. Scoring is deterministic (keyword matching,
+abstention phrasing, citation validation) so results are reproducible, with no
+LLM-judge nondeterminism in the pass/fail path.
+
+`is_grounded` validates that every `[n]` refers to a passage that was actually
+retrieved. A `[7]` when four sources were supplied is a fabricated citation, not
+grounding, and the raw-model path passes zero sources so it can never score as
+grounded.
+
+**Stated limitation:** these checks verify that a cited passage *exists*, not
+that it *supports* the claim. Semantic evaluation, whether a human rubric or an
+LLM judge as a secondary signal, is the documented next step, with deterministic
+checks remaining the hard pass/fail gate.
+
+## Findings that changed the design
+
+Two results that came out of building and running this, kept because they are
+the reason for decisions that would otherwise look arbitrary.
+
+### Measuring the client, not the server
+
+Latency is measured client-side with a wall clock, not read from the engine's own
+report of itself. That looks like paranoia until it catches something.
+
+An RTX campaign showed 2,071 ms plus or minus 12.9 ms of unattributed latency on
+every request, constant across 45 runs regardless of model size or speed.
+Ollama's internal timings looked healthy throughout, so throughput was valid
+while every latency figure was wrong. The residual was isolated to the Windows
+`localhost` connection path: the literal `127.0.0.1` removed it, leaving 21.5 ms.
+That is consistent with IPv6 `::1` being tried first and falling back, though no
+packet capture was taken, so the mechanism is recorded as unconfirmed rather than
+asserted.
+
+Two things follow. The default base URL is `127.0.0.1` rather than `localhost`,
+with the reason written where someone might otherwise "tidy" it back
+(`config.py`). And a harness that trusted the server's self-report would have
+published a campaign whose latency numbers were entirely artifact.
+
+### Injection that arrives inside a document
 
 Injection that arrives inside an indexed document bypasses the input rail
 entirely, because the user's question is benign and the payload rides in on a
@@ -280,37 +343,6 @@ Clean documents pay nothing; accuracy returned to 13/14 with the defense intact.
 The general lesson, which is the interesting part: **guardrails are not free.**
 They cost latency, tokens, false positives and accuracy, so the useful question
 is not "is it safe" but "what did safety cost, and is the trade worth it".
-
-### `agent.py` and `guardrails.py`
-
-The principle made literal: **the model proposes, deterministic code
-authorizes.** `agent.py` runs a model -> tool -> observation loop over native
-tool calling. `guardrails.py` is five plain-Python rails: input
-(prompt-injection and disallowed intent), tool allowlist (least privilege),
-parameter (type and bounds), approval (human-in-the-loop for consequential
-actions), and output (secret leakage).
-
-The model may request `set_power_limit(150)`. The parameter rail rejects it
-because 150 falls outside 80-115, and no amount of model confidence changes
-that. Guardrails are deterministic precisely because the thing they guard is
-probabilistic.
-
-### `evals.py`
-
-Two suites: RAG groundedness and abstention, and adversarial guardrail
-enforcement scored on outcome. Scoring is deterministic (keyword matching,
-abstention phrasing, citation validation) so results are reproducible, with no
-LLM-judge nondeterminism in the pass/fail path.
-
-`is_grounded` validates that every `[n]` refers to a passage that was actually
-retrieved. A `[7]` when four sources were supplied is a fabricated citation, not
-grounding, and the raw-model path passes zero sources so it can never score as
-grounded.
-
-**Stated limitation:** these checks verify that a cited passage *exists*, not
-that it *supports* the claim. Semantic evaluation, whether a human rubric or an
-LLM judge as a secondary signal, is the documented next step, with deterministic
-checks remaining the hard pass/fail gate.
 
 ## Request lifecycle
 
@@ -355,16 +387,37 @@ is identical.
 | Deterministic guardrails and evals | Reproducibility, and deterministic software should control a probabilistic model |
 | Plain English on every surface | The work has to travel to non-experts to be useful |
 
-## Mapping to the local AI stack
+## Where a change goes
 
-The project deliberately walks the entire stack rather than benchmarking a model
-in isolation:
+A map for the most likely reasons to open this code:
 
-```
-Hardware  →  driver/runtime  →  engine  →  model  →  serving  →  RAG
-telemetry     Metal / CUDA      ollama.py  Qwen etc.  ollama      rag.py
-                                backends.py           server
+| To change | Start in | Watch out for |
+|---|---|---|
+| How a metric is measured | `ollama.py` (`GenerationResult`) | Every surface reads this dataclass; `backends.py` must map onto it too |
+| The methodology (repeats, warm-up, cold start) | `runner.py` | The web UI and CLI share it, so a change lands on both |
+| Adding an inference engine | `backends.py` | Satisfy the client contract and nothing downstream needs touching |
+| A verdict's wording or threshold | `report.py` | `console.py` imports these, so the terminal follows automatically |
+| Retrieval quality | `rag.py` (chunk size, `k`, the grounded prompt) | Chunking is where the known CSV failure lives |
+| What the agent may do | `guardrails.py` | Rails are deterministic on purpose; do not move a decision into the prompt |
+| An environment check | `readiness.py` | Both the web UI and `bench.py doctor` render whatever you add |
+| The UI | `web/index.html` | One file, no build step; keep it that way |
 
-   →  agent + tools  →  guardrails  →  application  →  evaluation
-        agent.py         guardrails.py    web UI         evals.py
-```
+## What is deliberately not here
+
+Absences worth naming, so they read as decisions rather than oversights:
+
+- **No unit test suite.** Verification has been end-to-end and manual: run the
+  campaign, check the numbers against the frozen evidence. For a measurement tool
+  this catches the errors that matter more reliably than mocked units would, but
+  it is a genuine gap and the honest reason a refactor here is riskier than it
+  looks.
+- **No semantic citation checking.** `evals.py` verifies that a cited source
+  exists, not that it supports the claim. The next step is a human rubric or an
+  LLM judge as a secondary signal, with the deterministic checks staying the hard
+  pass/fail gate.
+- **No database.** Runs are folders of JSON. That is what makes a run portable
+  between machines by copying it, which is the mechanism the whole cross-system
+  comparison rests on.
+- **No async.** A single-worker queue and a threaded stdlib server are sufficient
+  when the workload is deliberately serialised, and the concurrency that matters
+  here is one background job plus progress polling.
