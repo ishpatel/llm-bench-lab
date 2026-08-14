@@ -1,7 +1,7 @@
 # Architecture
 
-How llm-bench-lab is put together, and why each decision was made. About 6,500
-lines: 5,000 of Python across 18 modules plus a 1,500-line single-page UI, on the
+How llm-bench-lab is put together, and why each decision was made. About 6,800
+lines: 5,200 of Python across 19 modules plus a 1,600-line single-page UI, on the
 standard library alone.
 
 This document assumes you have read the [README](README.md) and want to know how
@@ -249,6 +249,12 @@ never evicted, however old, because the UI is still polling them.
 
 A stdlib `ThreadingHTTPServer` exposing a small JSON API and serving one HTML
 file. Threaded so that progress polling is served while the worker benchmarks.
+HTTP/1.1 with keep-alive, because the UI polls job progress every ~700 ms and
+on 1.0 each poll paid a fresh TCP handshake; safe because every response goes
+through one `_send` helper that always sets Content-Length. The same helper
+gzips text responses when the client accepts it, which matters for the run
+history (~150 KB of JSON, 15x smaller) and for opening the UI from another
+machine on the LAN.
 The UI is a single dependency-free vanilla-JS page: seven tabs, no framework, no
 build step. It stays thin on purpose, building config dicts and rendering JSON
 while all real work happens in the same backend the CLI uses.

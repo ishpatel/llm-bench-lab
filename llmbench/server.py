@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import base64
 import datetime
+import gzip
 import json
 import os
 import threading
@@ -320,24 +321,46 @@ class BenchServer:
         return fn
 
 
+# Only text formats are worth compressing; images and zips already are.
+COMPRESSIBLE = ("application/json", "text/html", "text/css",
+                "text/javascript", "image/svg+xml", "text/plain")
+
+
 class Handler(BaseHTTPRequestHandler):
     server_app: BenchServer = None  # set by make_handler
 
+    # HTTP/1.1 for keep-alive. The UI polls job progress every ~700 ms during a
+    # run, and on 1.0 each poll paid a fresh TCP handshake. Safe here because
+    # every response goes through _send, which always sets Content-Length.
+    protocol_version = "HTTP/1.1"
+
     # -- helpers -----------------------------------------------------------
-    def _json(self, obj: Any, code: int = 200) -> None:
-        body = json.dumps(obj).encode("utf-8")
+    def _send(self, body: bytes, ctype: str, code: int = 200,
+              extra: Optional[Dict[str, str]] = None) -> None:
+        # The runs list is ~150 KB of JSON and the page ~90 KB of HTML; gzip
+        # cuts both roughly 8x for the cost of a few ms on localhost and much
+        # more than that when the UI is opened from another machine on the LAN.
+        if (len(body) > 1024 and ctype.startswith(COMPRESSIBLE) and "gzip" in
+                (self.headers.get("Accept-Encoding") or "")):
+            body = gzip.compress(body, compresslevel=5)
+            encoding = "gzip"
+        else:
+            encoding = None
         self.send_response(code)
-        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Type", ctype)
+        if encoding:
+            self.send_header("Content-Encoding", encoding)
+        for k, v in (extra or {}).items():
+            self.send_header(k, v)
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
 
+    def _json(self, obj: Any, code: int = 200) -> None:
+        self._send(json.dumps(obj).encode("utf-8"), "application/json", code)
+
     def _bytes(self, data: bytes, ctype: str, code: int = 200) -> None:
-        self.send_response(code)
-        self.send_header("Content-Type", ctype)
-        self.send_header("Content-Length", str(len(data)))
-        self.end_headers()
-        self.wfile.write(data)
+        self._send(data, ctype, code)
 
     def _same_origin(self) -> bool:
         """True when the request came from this server's own page.
@@ -558,14 +581,9 @@ class Handler(BaseHTTPRequestHandler):
         bundle = self.server_app.store.export_bundle(run_id)
         if bundle is None:
             return self._json({"error": "not found"}, 404)
-        body = json.dumps(bundle).encode("utf-8")
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Disposition",
-                         f'attachment; filename="{run_id}.llmbench.json"')
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
+        self._send(json.dumps(bundle).encode("utf-8"), "application/json",
+                   extra={"Content-Disposition":
+                          f'attachment; filename="{run_id}.llmbench.json"'})
 
     def _run_fix(self, key: str):
         """Look the command up from a freshly computed readiness report, so what
