@@ -1,7 +1,7 @@
 # Architecture
 
-How llm-bench-lab is put together, and why each decision was made. About 6,800
-lines: 5,200 of Python across 19 modules plus a 1,600-line single-page UI, on the
+How llm-bench-lab is put together, and why each decision was made. About 7,500
+lines: 5,500 of Python across 19 modules plus a 1,900-line single-page UI, on the
 standard library alone.
 
 This document assumes you have read the [README](README.md) and want to know how
@@ -429,6 +429,7 @@ A map for the most likely reasons to open this code:
 | Detecting another engine | `engines.py` | Add the port + a fingerprint; label generically when the fingerprint misses |
 | Making a fix runnable | `readiness.RUNNABLE` | Only add commands that need no elevated rights; the rest stay copy-only |
 | The UI | `web/index.html` | One file, no build step; keep it that way |
+| What each experience level shows | `applyLevel()` in `web/index.html` | Gate visibility there, not scattered per feature; beginner must never sit on a hidden engine |
 
 ## What is deliberately not here
 

@@ -866,6 +866,13 @@ function applyLevel(){
   const showAdv   = level==='advanced' || (level==='intermediate' && prefs.showAdv!==false);
   const showEng   = level==='advanced' || (level==='intermediate' && prefs.showEng!==false);
   const showLab   = level==='advanced' || (level==='intermediate' && prefs.showLab!==false);
+  // Beginner never runs through a hidden engine: switching down from an
+  // intermediate setup that had activated one restores the default engine and
+  // its model list via the same path the visible toggle uses. Without this the
+  // model value pointed at a list that was no longer in the picker.
+  if(level==='beginner'&&state.trtActive){
+    $('#trt').checked=false;$('#trt').onchange();
+  }
   $('#advPanel').style.display=showAdv?'':'none';
   ['#engineLabel','#trtHelp','#engineFound'].forEach(sel=>{
     const el=$(sel);if(el)el.style.display=showEng?'':'none';});

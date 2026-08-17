@@ -25,7 +25,6 @@ from typing import Any, Dict, Optional
 from llmbench import config as cfg_mod
 from llmbench import console as console_mod
 from llmbench import report as report_mod
-from llmbench import server as server_mod
 from llmbench import telemetry
 from llmbench.ollama import OllamaClient
 from llmbench.runner import Runner
@@ -282,6 +281,9 @@ def cmd_run(args: argparse.Namespace) -> int:
 
 
 def cmd_serve(args: argparse.Namespace) -> int:
+    # Imported here, not at module top: the web server is half the CLI's import
+    # bill and every other subcommand pays it for nothing.
+    from llmbench import server as server_mod
     server_mod.serve(host=args.host, port=args.port,
                      base_url=args.base_url, project_root=HERE)
     return 0
