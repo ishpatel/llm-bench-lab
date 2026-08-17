@@ -139,6 +139,14 @@ knowing:
   because those are different bottlenecks and a system can be strong at one and
   weak at the other.
 
+`engines.py` discovers what is running: it probes the well-known local ports
+(Ollama 11434, LM Studio 1234, llama-server 8080, vLLM 8000, Jan 1337, GPT4All
+4891) in parallel with sub-second timeouts, then fingerprints each hit through a
+native endpoint (`/api/v0/models`, `/props`, `/version`) because two products
+can share a default port; an unidentified server is labelled generically rather
+than guessed. Discovery adds no protocol — everything found is driven through
+the two existing clients.
+
 `backends.py` does the same job over the OpenAI-compatible
 `/v1/chat/completions` SSE protocol, taking token counts from the `usage` chunk.
 When a server sends no usage block, it records the stream-chunk count, sets
@@ -418,6 +426,7 @@ A map for the most likely reasons to open this code:
 | Retrieval quality | `rag.py` (chunk size, `k`, the grounded prompt) | Chunking is where the known CSV failure lives |
 | What the agent may do | `guardrails.py` | Rails are deterministic on purpose; do not move a decision into the prompt |
 | An environment check | `readiness.py` | Both the web UI and `bench.py doctor` render whatever you add |
+| Detecting another engine | `engines.py` | Add the port + a fingerprint; label generically when the fingerprint misses |
 | Making a fix runnable | `readiness.RUNNABLE` | Only add commands that need no elevated rights; the rest stay copy-only |
 | The UI | `web/index.html` | One file, no build step; keep it that way |
 

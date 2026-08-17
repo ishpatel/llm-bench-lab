@@ -351,7 +351,8 @@
         </div>
       </div>
       <div class="field">
-        <label><input type="checkbox" id="trt" style="width:auto"> OpenAI-compatible backend <span class="hint">(TensorRT-LLM, NIM, vLLM)</span></label>
+        <label><input type="checkbox" id="trt" style="width:auto"> Use another engine <span class="hint">(LM Studio, llama.cpp, vLLM, Jan, GPT4All, TensorRT-LLM/NIM)</span></label>
+        <div class="samples" id="engineFound" style="display:none;margin:6px 0 2px"></div>
         <div class="help" id="trtHelp">Benchmark through another inference engine instead of Ollama. Any
           server speaking the OpenAI-compatible API works: NVIDIA's <span class="mono">trtllm-serve</span>
           (TensorRT-LLM), a NIM container, or vLLM. The same prompt then runs on that engine, so you can
@@ -1018,6 +1019,7 @@ async function init(){
       }
     }
   }catch(e){$('#sysChips').innerHTML='<span class="hwchip" style="color:var(--bad)">API error</span>';}
+  loadEngines();     // other local engines (LM Studio, llama.cpp, ...) get one-click chips
   loadReadiness();   // runs regardless: an unreachable engine is itself a result
   loadRuns();
 }
@@ -1041,6 +1043,25 @@ document.querySelectorAll('.samplechip').forEach(b=>b.onclick=()=>{
 
 /* ---------------- OpenAI-compatible backend (TensorRT-LLM, NIM, vLLM) ---------------- */
 state.trtActive=false; state.savedModelHtml=null;
+
+// Other engines found running on this machine become one-click chips. Clicking
+// one drives the same URL + Check connection path a manual entry uses, so the
+// tested route is the only route.
+async function loadEngines(){
+  let d;try{d=await (await fetch('/api/engines')).json();}catch(e){return;}
+  const others=(d.engines||[]).filter(e=>e.kind==='openai');
+  const row=$('#engineFound');
+  if(!others.length){row.style.display='none';return;}
+  row.style.display='';
+  row.innerHTML='<span class="hint">Also running here:</span>'+others.map(e=>
+    `<button type="button" class="samplechip" data-url="${esc(e.base_url)}" data-label="${esc(e.label)}">
+       ${esc(e.label)} · ${e.models.length} model${e.models.length===1?'':'s'}</button>`).join('');
+  row.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+    $('#trt').checked=true;$('#trtRow').style.display='';
+    $('#trtUrl').value=b.dataset.url;$('#trtLabel').value=b.dataset.label;
+    checkTrt();
+  });
+}
 function trtHelpDefault(){
   const nv=state.deep&&/NVIDIA/i.test(((state.deep.env||{}).backend)||'');
   $('#trtHelp').innerHTML = nv

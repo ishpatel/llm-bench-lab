@@ -4,6 +4,7 @@
 Commands
     info                 Show detected system + Ollama status/models
     doctor               Check dependencies + environment before benchmarking
+    engines              List local inference engines (Ollama, LM Studio, ...)
     run   CONFIG         Run a benchmark config, write a results JSON
     report RESULTS...    Build an HTML report from one or more results files
 
@@ -19,7 +20,7 @@ import json
 import os
 import re
 import sys
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from llmbench import config as cfg_mod
 from llmbench import console as console_mod
@@ -138,6 +139,50 @@ def _check_models(cfg: Dict[str, Any], client: "OllamaClient") -> int:
     return 1
 
 
+def cmd_engines(args: argparse.Namespace) -> int:
+    """List every local inference engine the bench can find."""
+    from llmbench import engines as engines_mod
+    found = engines_mod.detect(ollama_base_url=args.base_url)
+    if args.json:
+        print(json.dumps(found, indent=2))
+        return 0 if found else 1
+    if not found:
+        print("No local inference engine detected.\n"
+              "Looked for: Ollama (:11434), LM Studio (:1234), llama.cpp "
+              "(:8080), vLLM (:8000), Jan (:1337), GPT4All (:4891).")
+        return 1
+    for e in found:
+        models = ", ".join(e["models"][:6]) + \
+            (f", +{len(e['models']) - 6} more" if len(e["models"]) > 6 else "")
+        print(f"{e['label']:24} {e['base_url']:28} "
+              f"{len(e['models'])} model(s){': ' + models if models else ''}")
+    print("\nBenchmark through one:  bench.py run -m MODEL --engine "
+          f"{found[-1]['label'].split()[0].lower()}")
+    return 0
+
+
+def _resolve_engine(args: argparse.Namespace) -> Optional[Dict[str, Any]]:
+    """Turn --engine NAME_OR_URL into a backend config, or None for Ollama.
+    Names match detected engines case-insensitively; a URL is taken as given
+    so a remote machine works without being detectable locally."""
+    want = (args.engine or "").strip()
+    if not want or want.lower() == "ollama":
+        return None
+    if want.startswith(("http://", "https://")):
+        return {"type": "openai", "base_url": want.rstrip("/"),
+                "label": "OpenAI-compatible"}
+    from llmbench import engines as engines_mod
+    found = [e for e in engines_mod.detect(ollama_base_url=args.base_url)
+             if e["kind"] == "openai"]
+    for e in found:
+        if want.lower() in e["label"].lower():
+            return {"type": "openai", "base_url": e["base_url"],
+                    "label": e["label"]}
+    names = ", ".join(e["label"] for e in found) or "none besides Ollama"
+    raise ValueError(f"--engine '{want}' not found; running now: {names}. "
+                     "A URL like http://host:1234 also works.")
+
+
 def _adhoc_config(args: argparse.Namespace) -> Dict[str, Any]:
     """Build a config dict straight from -m/-p flags. Third front door to the
     same contract the JSON configs and the web UI already use: a developer can
@@ -174,6 +219,9 @@ def cmd_run(args: argparse.Namespace) -> int:
             cfg["runs"] = args.runs
         prompts = cfg_mod.load_prompts(args.prompts)
         cfg_mod.resolve_prompts(cfg["prompts"], prompts)   # fail before measuring
+        engine = _resolve_engine(args)
+        if engine:
+            cfg["backend"] = engine
     except (OSError, ValueError, KeyError) as exc:
         return _config_error(exc, args)
 
@@ -458,6 +506,13 @@ def main(argv=None) -> int:
     with_base_url(pi)
     pi.set_defaults(func=cmd_info)
 
+    peng = sub.add_parser("engines",
+                          help="list local inference engines the bench can see")
+    with_base_url(peng)
+    peng.add_argument("--json", action="store_true",
+                      help="machine-readable list (exit 1 when none found)")
+    peng.set_defaults(func=cmd_engines)
+
     pdoc = sub.add_parser("doctor",
                           help="check dependencies + environment for this machine")
     with_base_url(pdoc)
@@ -477,6 +532,10 @@ def main(argv=None) -> int:
     pr.add_argument("-p", "--prompt", default=None,
                     help="inline prompt for an ad-hoc run (default: the "
                          "short_qa prompt from the prompt set)")
+    pr.add_argument("--engine", default=None, metavar="NAME_OR_URL",
+                    help="run through another engine: a detected name "
+                         "('lm studio', 'llama.cpp', 'vllm') or an "
+                         "OpenAI-compatible URL (default: Ollama)")
     pr.add_argument("--quick", action="store_true",
                     help="1 repeat, no warm-up, no cold start: a fast look, "
                          "not a publishable number")

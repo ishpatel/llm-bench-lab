@@ -4,9 +4,11 @@ A benchmarking harness for running AI models on your own computer, built to
 answer a question that a single tokens-per-second number cannot: **what will
 this model actually feel like on this machine, and where does it fall apart?**
 
-It runs on NVIDIA RTX and Apple Silicon from the same codebase, measures the
-things a user actually notices, and writes every result down in plain English
-next to the caveats that qualify it.
+It runs on NVIDIA RTX and Apple Silicon from the same codebase, works with the
+model managers people actually use (Ollama, LM Studio, llama.cpp, vLLM, Jan,
+GPT4All — anything speaking the OpenAI-compatible API), measures the things a
+user actually notices, and writes every result down in plain English next to
+the caveats that qualify it.
 
 Python 3.9+ standard library only. No pip install. MIT licensed.
 
@@ -348,11 +350,36 @@ side by side, with the memory cliff flagged automatically and the throughput cos
 computed. `bench.py adopt` pulls CLI results into the web history if you prefer
 to start on the command line and finish in the UI.
 
-### Alternate engines: TensorRT-LLM, NIM, vLLM
+### Other engines: LM Studio, llama.cpp, vLLM, Jan, GPT4All, TensorRT-LLM
 
-By default runs go through Ollama, whose engine is llama.cpp. Any server speaking
-the **OpenAI-compatible API** can be used instead, which lets you put two engines
-head-to-head on the same GPU, model and prompt.
+Ollama is one way to run models locally, not the only one. Anything speaking the
+**OpenAI-compatible API** benchmarks the same way, and the popular ones are
+found without configuration — the bench probes their well-known ports and
+fingerprints the product behind each:
+
+```bash
+python bench.py engines
+```
+
+```
+Ollama                   http://127.0.0.1:11434       7 model(s): ...
+llama.cpp                http://127.0.0.1:8080        1 model(s): qwen3-4b-q4-gguf
+```
+
+In the web app, detected engines appear as one-click chips under **Use another
+engine**; on the CLI, `--engine` takes a detected name or any URL:
+
+```bash
+python bench.py run -m qwen3-4b-q4-gguf --engine llama.cpp --quick
+python bench.py run -m my-model --engine "lm studio"
+python bench.py run -m my-model --engine http://192.168.1.20:8000
+```
+
+Engine identity is fingerprinted, not assumed: LM Studio answers its native
+`/api/v0/models`, llama-server its `/props`, vLLM its `/version`; a server that
+matches none is labelled the generic OpenAI-compatible, because two products can
+share a default port. This also puts two engines head-to-head on the same GPU,
+model and prompt:
 
 ```bash
 pip install tensorrt-llm
@@ -528,6 +555,7 @@ recognise, scoring a correct abstention as a failure.
 |---|---|
 | `serve` | Launch the web UI (`--host`, `--port`) |
 | `doctor` | Check dependencies and environment; exits 1 if anything blocks a run |
+| `engines` | List local inference engines detected (Ollama, LM Studio, llama.cpp, …) |
 | `info` | Print the detected system, Ollama status and installed models |
 | `run CONFIG` | Execute a benchmark config, print the metrics, write a results JSON |
 | `run -m MODEL [-p PROMPT] [--quick]` | Ad-hoc benchmark, no config file; `--quick` = 1 repeat, no warm-up |
@@ -620,8 +648,11 @@ results/  runs/  kb/    generated output (gitignored)
 ### Requirements
 
 - Python 3.9+, standard library only
-- [Ollama](https://ollama.com) running locally (`ollama serve`)
-- Models pulled ahead of time; each config lists what it needs
+- A local inference engine with at least one model. [Ollama](https://ollama.com)
+  is the most capable pairing, but LM Studio, llama.cpp's `llama-server`, vLLM,
+  Jan and GPT4All are detected automatically and benchmark the same way
+- Copilot and the eval suites specifically need Ollama (they embed through its
+  API); benchmarks do not
 - Optional on NVIDIA: `nvidia-smi` on PATH for live GPU telemetry
 
 ### When something is missing

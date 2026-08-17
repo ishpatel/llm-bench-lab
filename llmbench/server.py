@@ -6,6 +6,7 @@ small JSON API that drives the existing Runner/attachments/extract stack:
     GET  /                      the UI
     GET  /api/models            locally installed Ollama models + system info
     GET  /api/readiness         dependency + environment checks for this machine
+    GET  /api/engines           local inference engines detected on this machine
     POST /api/readiness/fix     run one suggested fix (same-origin, allowlisted)
     POST /api/runs              start a benchmark run -> {id}; runs in the queue
     GET  /api/jobs/<id>         live job state + progress log (UI polls this)
@@ -29,6 +30,7 @@ from urllib.parse import parse_qs, urlparse
 
 from . import evals as evals_mod
 from . import guardrails
+from . import engines as engines_mod
 from . import fixes as fixes_mod
 from . import rag as rag_mod
 from . import readiness
@@ -420,6 +422,9 @@ class Handler(BaseHTTPRequestHandler):
                 if run is None:
                     return self._json({"error": "no such fix run"}, code=404)
                 return self._json(run.snapshot())
+            if path == "/api/engines":
+                return self._json(
+                    {"engines": engines_mod.detect(ollama_base_url=app.base_url)})
             if path == "/api/readiness":
                 up = app.client.is_up()
                 return self._json(readiness.describe_readiness(

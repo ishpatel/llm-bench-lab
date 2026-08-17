@@ -18,6 +18,7 @@ import shutil
 import sys
 from typing import Any, Dict, List, Optional
 
+from . import engines as engines_mod
 from . import telemetry
 
 MIN_PYTHON = (3, 9)
@@ -71,57 +72,75 @@ def _python_check() -> Dict[str, str]:
                       f"{need}+ language features.")
 
 
-def _engine_check(client, base_url: str, version: Optional[str]) -> Dict[str, str]:
-    if client is None or not client.is_up():
-        return _check("engine", "Ollama server", "fail",
-                      f"not reachable at {base_url}",
-                      fix="Start the Ollama server, then check again.",
+def _engine_check(found: List[Dict[str, Any]], base_url: str,
+                  version: Optional[str]) -> Dict[str, str]:
+    """Any local engine satisfies the bench; Ollama is one of several."""
+    why = ("An engine loads the models and serves the tokens every measurement "
+           "is taken from. Ollama, LM Studio, llama.cpp's llama-server, vLLM, "
+           "Jan and GPT4All are all detected automatically.")
+    if not found:
+        return _check("engine", "Inference engine", "fail",
+                      "none detected (Ollama, LM Studio, llama.cpp, vLLM, "
+                      "Jan, GPT4All)",
+                      fix="Start whichever you use. If that is Ollama:",
                       cmd=_for_os({
-                          # Identical on every platform. A Linux box running it
-                          # as a service wants systemctl, but `ollama serve` in
-                          # the foreground works there too and needs no sudo.
+                          # Identical on every platform, and the only engine
+                          # with a start command rather than an app to open.
                           "all": "ollama serve",
                       }),
-                      why="Ollama loads the models and serves the tokens that "
-                          "every measurement is taken from.")
-    return _check("engine", "Ollama server", "ok",
-                  f"up at {base_url}" + (f" · v{version}" if version else ""),
-                  why="Ollama loads the models and serves the tokens that "
-                      "every measurement is taken from.")
+                      why=why)
+    parts = []
+    for e in found:
+        port = e["base_url"].rsplit(":", 1)[-1]
+        if e["label"] == "Ollama" and version:
+            parts.append(f"Ollama v{version}")
+        else:
+            parts.append(f"{e['label']} on :{port}")
+    return _check("engine", "Inference engine", "ok", " + ".join(parts), why=why)
 
 
-def _model_checks(models: List[Dict[str, Any]], engine_ok: bool) -> List[Dict[str, str]]:
+def _model_checks(models: List[Dict[str, Any]], found: List[Dict[str, Any]]
+                  ) -> List[Dict[str, str]]:
     """Generative models are required; an embedding model is only needed by the
-    retrieval features, so its absence is a warning rather than a failure."""
-    if not engine_ok:
+    retrieval features, so its absence is a warning rather than a failure.
+    `models` is Ollama's capability-tagged list; other engines report ids only,
+    which all count as generative because /v1/models cannot say otherwise."""
+    if not found:
         return [_check("models", "Models installed", "fail",
-                       "cannot tell until Ollama is reachable",
-                       fix="Start Ollama first.",
+                       "cannot tell until an engine is running",
+                       fix="Start an engine first.",
                        why="A benchmark needs at least one model that answers "
                            "prompts.")]
     gen = [m for m in models if m.get("generative") and not m.get("embedding")]
     emb = [m for m in models if m.get("embedding")]
+    other = [(e["label"], len(e["models"])) for e in found
+             if e["kind"] != "ollama" and e["models"]]
     out = []
-    if gen:
+    if gen or other:
+        parts = ([f"{len(gen)} via Ollama"] if gen else []) +                 [f"{n} via {lab}" for lab, n in other]
         out.append(_check("models", "Models installed", "ok",
-                          f"{len(gen)} ready to benchmark",
+                          ", ".join(parts) or "0",
                           why="A benchmark needs at least one model that "
                               "answers prompts."))
     else:
         only_emb = " Only embedding models are present." if emb else ""
         out.append(_check("models", "Models installed", "fail",
                           f"none available to benchmark.{only_emb}",
-                          fix="Pull a model that can answer prompts.",
+                          fix="Pull or download a model that can answer "
+                              "prompts. With Ollama:",
                           cmd="ollama pull qwen3:4b-q4_K_M",
                           why="A benchmark needs at least one model that "
                               "answers prompts."))
+    has_ollama = any(e["kind"] == "ollama" for e in found)
     out.append(_check(
         "embedding", "Embedding model", "ok" if emb else "warn",
-        f"{emb[0]['name']}" if emb else "none installed",
+        f"{emb[0]['name']}" if emb else
+        ("none installed" if has_ollama else "needs Ollama (not running)"),
         fix="" if emb else "Pull an embedding model to enable retrieval.",
-        cmd="" if emb else "ollama pull embeddinggemma",
+        cmd="" if emb or not has_ollama else "ollama pull embeddinggemma",
         why="Only the Copilot and Evals tabs need one, to turn documents into "
-            "vectors for retrieval. Benchmarks run without it."))
+            "vectors for retrieval; they embed through Ollama specifically. "
+            "Benchmarks run without it."))
     return out
 
 
@@ -211,12 +230,13 @@ def describe_readiness(client=None, base_url: str = "",
     """Run every check and summarise. `client` and `models` are passed in so a
     caller that has already talked to Ollama does not query it twice."""
     deep = deep or telemetry.describe_system_deep()
-    engine_ok = bool(client is not None and client.is_up())
+    found = engines_mod.detect(ollama_base_url=base_url) if base_url \
+        else engines_mod.detect()
     checks: List[Dict[str, str]] = [
         _python_check(),
-        _engine_check(client, base_url, (deep.get("env") or {}).get("ollama")),
+        _engine_check(found, base_url, (deep.get("env") or {}).get("ollama")),
     ]
-    checks += _model_checks(models or [], engine_ok)
+    checks += _model_checks(models or [], found)
     checks.append(_accel_check(deep))
     checks.append(_storage_check(project_root))
     checks += _nvidia_checks(deep)
@@ -234,5 +254,6 @@ def describe_readiness(client=None, base_url: str = "",
     else:
         state, headline = "ok", "Ready to benchmark"
     return {"state": state, "headline": headline, "checks": checks,
+            "engines": found,
             "counts": {"ok": len(checks) - len(fails) - len(warns),
                        "warn": len(warns), "fail": len(fails)}}
