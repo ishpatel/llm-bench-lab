@@ -147,24 +147,37 @@ def _model_checks(models: List[Dict[str, Any]], found: List[Dict[str, Any]]
 def _accel_check(deep: Dict[str, Any]) -> Dict[str, str]:
     env, gpu = deep.get("env") or {}, deep.get("gpu") or {}
     backend = env.get("backend") or ""
-    if backend:
+    why = ("Inference on the GPU is what the benchmark is measuring; Apple "
+           "Silicon, NVIDIA, AMD and Intel GPUs are all recognised. On CPU "
+           "alone the numbers describe a fallback path, not the hardware.")
+    if backend and not backend.startswith("CPU only"):
         return _check("accel", "GPU acceleration", "ok",
                       backend + (f" · {gpu['name']}" if gpu.get("name") else ""),
-                      why="Inference on the GPU is what the benchmark is "
-                          "measuring. On CPU alone the numbers describe a "
-                          "fallback path, not the hardware.")
-    return _check("accel", "GPU acceleration", "warn", "no GPU backend detected",
-                  fix="Check that the GPU driver and Ollama are installed.",
-                  why="Without a GPU backend, models run on the CPU and the "
-                      "results describe a fallback path rather than the "
-                      "accelerator.")
+                      why=why)
+    return _check("accel", "GPU acceleration", "warn",
+                  backend or "no GPU detected",
+                  fix="Check that the GPU driver is installed; benchmarks "
+                      "still run, measuring the CPU fallback.",
+                  why=why)
 
 
-def _nvidia_checks(deep: Dict[str, Any]) -> List[Dict[str, str]]:
-    """NVIDIA-only extras. Skipped entirely elsewhere: a Mac reporting a
-    missing nvidia-smi is noise, not a finding."""
+def _vendor_checks(deep: Dict[str, Any]) -> List[Dict[str, str]]:
+    """Vendor-specific extras, shown only on that vendor's hardware: a Mac
+    reporting a missing nvidia-smi is noise, not a finding."""
+    gpu = deep.get("gpu") or {}
+    if gpu.get("vendor") == "AMD":
+        has = telemetry.has_rocm_smi()
+        return [_check(
+            "rocmsmi", "rocm-smi", "ok" if has else "warn",
+            "on PATH" if has else "not installed",
+            fix="" if has else _for_os({
+                "linux": "sudo apt install rocm-smi",
+                "all": "Install AMD's ROCm tools for live GPU telemetry.",
+            }),
+            why="Supplies live GPU utilisation, VRAM, power and temperature "
+                "during a run. Timing measurements do not depend on it.")]
     trt = telemetry.tensorrt_status()
-    gpu_name = ((deep.get("gpu") or {}).get("name") or "").lower()
+    gpu_name = (gpu.get("name") or "").lower()
     if not trt.get("nvidia_gpu") and "nvidia" not in gpu_name:
         return []
     out = [_check(
@@ -239,7 +252,7 @@ def describe_readiness(client=None, base_url: str = "",
     checks += _model_checks(models or [], found)
     checks.append(_accel_check(deep))
     checks.append(_storage_check(project_root))
-    checks += _nvidia_checks(deep)
+    checks += _vendor_checks(deep)
 
     fails = [c for c in checks if c["status"] == "fail"]
     warns = [c for c in checks if c["status"] == "warn"]

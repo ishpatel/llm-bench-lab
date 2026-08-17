@@ -4,11 +4,11 @@ A benchmarking harness for running AI models on your own computer, built to
 answer a question that a single tokens-per-second number cannot: **what will
 this model actually feel like on this machine, and where does it fall apart?**
 
-It runs on NVIDIA RTX and Apple Silicon from the same codebase, works with the
-model managers people actually use (Ollama, LM Studio, llama.cpp, vLLM, Jan,
-GPT4All — anything speaking the OpenAI-compatible API), measures the things a
-user actually notices, and writes every result down in plain English next to
-the caveats that qualify it.
+It runs on Apple Silicon, NVIDIA, AMD and Intel hardware from the same
+codebase, works with the model managers people actually use (Ollama, LM Studio,
+llama.cpp, vLLM, Jan, GPT4All — anything speaking the OpenAI-compatible API),
+measures the things a user actually notices, and writes every result down in
+plain English next to the caveats that qualify it.
 
 Python 3.9+ standard library only. No pip install. MIT licensed.
 
@@ -632,7 +632,7 @@ llmbench/
   backends.py           OpenAI-compatible engine client (TensorRT-LLM, NIM, vLLM)
   runner.py             matrix expansion, methodology, aggregation
   config.py             config and prompt loading and validation
-  telemetry.py          platform detection, residency, nvidia-smi sampler
+  telemetry.py          vendor detection (Apple/NVIDIA/AMD/Intel), residency, GPU samplers
   readiness.py          dependency and environment checks
   console.py            terminal rendering for results and readiness
   report.py             self-contained HTML with inline SVG charts
@@ -661,7 +661,18 @@ results/  runs/  kb/    generated output (gitignored)
   Jan and GPT4All are detected automatically and benchmark the same way
 - Copilot and the eval suites specifically need Ollama (they embed through its
   API); benchmarks do not
-- Optional on NVIDIA: `nvidia-smi` on PATH for live GPU telemetry
+- Any GPU vendor. What each gets, stated plainly:
+
+| Hardware | Benchmarks | Named in System details | Live GPU sampling during a run |
+|---|---|---|---|
+| Apple Silicon (any M-series) | yes | yes | no per-process counter exists without elevated access; residency comes from the engine |
+| NVIDIA | yes | yes | yes, via `nvidia-smi` (utilisation, VRAM, power, temperature) |
+| AMD | yes | yes | yes where ROCm's `rocm-smi` is installed (Linux); named-only elsewhere |
+| Intel (Arc / integrated) and Intel Macs | yes | yes | named-only: no sampling CLI is reliably present, and reporting noise would be worse |
+
+  The benchmark numbers themselves never depend on vendor tooling — they are
+  wall-clock and engine-reported, so a machine with no sampler loses color,
+  not correctness.
 
 ### When something is missing
 

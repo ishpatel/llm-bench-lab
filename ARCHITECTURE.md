@@ -159,11 +159,19 @@ work for free as a result.
 
 ### `telemetry.py`
 
-Platform detection plus a background `nvidia-smi` sampler polling every 250 ms
-during a generation, capturing peak and average utilization, VRAM, power and
-temperature. Cross-platform and best-effort: on Apple Silicon it is a no-op,
-because there is no per-process VRAM counter without elevated `powermetrics`,
-and inventing one would be dishonest. `describe_system_deep()` produces the
+Vendor detection for the hardware people actually have: Apple Silicon (any
+M-series) and Intel Macs via sysctl/system_profiler, NVIDIA via `nvidia-smi`,
+AMD and Intel elsewhere via PCI ids (`/sys/class/drm`, lspci) or Windows CIM.
+A background sampler polls every 250 ms during a generation, capturing peak and
+average utilization, VRAM, power and temperature — through `nvidia-smi` on
+NVIDIA and `rocm-smi --json` where ROCm is installed on AMD, with the JSON
+parsed by key pattern because ROCm renames fields between releases. On Apple
+Silicon and Intel GPUs sampling is a deliberate no-op: no reliable counter
+exists without elevated access, and inventing one would be dishonest. Windows
+reports GPU memory through a 32-bit field that pins just under 4 GB on any
+larger card, so near-cap values are dropped rather than displayed: on a tool
+whose thesis is that VRAM capacity decides the experience, a wrong capacity is
+worse than none. `describe_system_deep()` produces the
 CPU / GPU / NPU / memory / environment breakdown, cached because
 `system_profiler` is slow. `tensorrt_status()` reports plain facts: NVIDIA GPU
 present, python `tensorrt` importable, endpoint reachable.

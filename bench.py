@@ -8,9 +8,9 @@ Commands
     run   CONFIG         Run a benchmark config, write a results JSON
     report RESULTS...    Build an HTML report from one or more results files
 
-Zero third-party dependencies; Python 3.9+. Runs identically on Apple Silicon
-(macOS) and NVIDIA (Windows/Linux). Point it at different machines, then merge
-the results files into one cross-system report.
+Zero third-party dependencies; Python 3.9+. Runs identically on Apple Silicon,
+NVIDIA, AMD and Intel machines (macOS / Windows / Linux). Point it at different
+machines, then merge the results files into one cross-system report.
 """
 from __future__ import annotations
 
