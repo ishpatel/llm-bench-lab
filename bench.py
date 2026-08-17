@@ -72,9 +72,13 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         client=client, base_url=args.base_url,
         models=client.models_detailed() if up else [],
         project_root=HERE, deep=deep)
-    console_mod.print_readiness(
-        report, system_label=telemetry.describe_system().get("label", ""),
-        verbose=args.verbose)
+    if args.json:
+        report["system"] = telemetry.describe_system().get("label", "")
+        print(json.dumps(report, indent=2))
+    else:
+        console_mod.print_readiness(
+            report, system_label=telemetry.describe_system().get("label", ""),
+            verbose=args.verbose)
     return 1 if report["state"] == "fail" else 0
 
 
@@ -134,9 +138,34 @@ def _check_models(cfg: Dict[str, Any], client: "OllamaClient") -> int:
     return 1
 
 
+def _adhoc_config(args: argparse.Namespace) -> Dict[str, Any]:
+    """Build a config dict straight from -m/-p flags. Third front door to the
+    same contract the JSON configs and the web UI already use: a developer can
+    benchmark a model without writing a file first."""
+    cfg = dict(cfg_mod.DEFAULTS)
+    cfg["options"] = dict(cfg_mod.DEFAULTS["options"])
+    cfg["name"] = "adhoc"
+    cfg["models"] = list(dict.fromkeys(args.model))
+    if args.prompt:
+        cfg["prompts"] = [{"key": "adhoc", "text": args.prompt}]
+    else:
+        cfg["prompts"] = ["short_qa"]   # sensible default from the prompt set
+    if args.quick:
+        cfg["runs"], cfg["warmup"] = 1, 0
+        cfg["measure_cold_start"] = False
+    return cfg
+
+
 def cmd_run(args: argparse.Namespace) -> int:
+    if bool(args.config) == bool(args.model):
+        print("error: pass either a config file or -m/--model (with an "
+              "optional -p/--prompt), not both.\n"
+              "  quick check:   bench.py run -m qwen3:4b-q4_K_M --quick\n"
+              "  full config:   bench.py run configs/cross-system.json",
+              file=sys.stderr)
+        return 2
     try:
-        cfg = cfg_mod.load_config(args.config)
+        cfg = _adhoc_config(args) if args.model else cfg_mod.load_config(args.config)
         if args.base_url:
             cfg["base_url"] = args.base_url
         if args.label:
@@ -177,7 +206,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     # Resolve relative attachment paths against the config dir, the prompts
     # dir, and the current working directory (in that order).
     base_dirs = [
-        os.path.dirname(os.path.abspath(args.config)),
+        os.path.dirname(os.path.abspath(args.config)) if args.config else HERE,
         os.path.dirname(os.path.abspath(args.prompts)),
         os.getcwd(),
     ]
@@ -353,17 +382,61 @@ def cmd_report(args: argparse.Namespace) -> int:
     return 0
 
 
+def _summary_records(results: Dict[str, Any]) -> Dict[str, Any]:
+    """Flatten one results document into jq-friendly per-cell records: medians
+    up front, no digging through the aggregate schema."""
+    meta = results.get("meta") or {}
+
+    def med(agg, k):
+        m = (agg or {}).get(k)
+        return m.get("median") if isinstance(m, dict) else None
+
+    cells = []
+    for c in results.get("cells") or []:
+        agg = c.get("aggregate") or {}
+        cells.append({
+            "label": c.get("label"), "model": c.get("model"),
+            "prompt_key": c.get("prompt_key"),
+            "context_length": c.get("context_length"),
+            "gen_tps": med(agg, "gen_tps"), "prompt_tps": med(agg, "prompt_tps"),
+            "ttfv_ms": med(agg, "ttfv_ms"), "ttft_ms": med(agg, "ttft_ms"),
+            "cold_load_ms": (c.get("cold_start") or {}).get("load_ms"),
+            "prompt_tokens": med(agg, "prompt_tokens"),
+            "output_tokens": med(agg, "output_tokens"),
+            "residency": c.get("residency"),
+            "n_ok": agg.get("n_ok"), "n_total": agg.get("n_total"),
+        })
+    return {"config": meta.get("config_name"),
+            "system": (meta.get("system") or {}).get("label"),
+            "engine": meta.get("engine", "Ollama"), "cells": cells}
+
+
 def cmd_summary(args: argparse.Namespace) -> int:
     """Re-print the terminal summary for results saved earlier."""
+    docs = []
     for path in args.results:
         with open(path, "r", encoding="utf-8") as f:
-            console_mod.print_summary(json.load(f))
+            docs.append(json.load(f))
+    if args.json:
+        print(json.dumps([_summary_records(d) for d in docs], indent=2))
+    else:
+        for d in docs:
+            console_mod.print_summary(d)
     return 0
 
 
 def main(argv=None) -> int:
-    p = argparse.ArgumentParser(prog="bench.py", description=__doc__,
-                                formatter_class=argparse.RawDescriptionHelpFormatter)
+    p = argparse.ArgumentParser(
+        prog="bench.py", description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""examples:
+  bench.py doctor                                   is this machine ready?
+  bench.py run -m qwen3:4b-q4_K_M --quick           ad-hoc look at one model
+  bench.py run -m MODEL -p "Summarize RAG in a sentence."
+  bench.py run configs/cross-system.json --label "RTX 5070 (8GB)"
+  bench.py summary results/*.json --json | jq '.[].cells[] | {model, gen_tps}'
+  bench.py report results/cross-system_*.json --out results/cross.html
+  bench.py serve                                    the web UI, for everyone else""")
     p.add_argument("--base-url", default=DEFAULT_BASE_URL,
                    help="Ollama base URL (default: %(default)s). Accepted "
                         "before or after the subcommand.")
@@ -390,11 +463,23 @@ def main(argv=None) -> int:
     with_base_url(pdoc)
     pdoc.add_argument("--verbose", action="store_true",
                       help="explain every check, not only the ones needing action")
+    pdoc.add_argument("--json", action="store_true",
+                      help="machine-readable report (exit code is unchanged)")
     pdoc.set_defaults(func=cmd_doctor)
 
-    pr = sub.add_parser("run", help="run a benchmark config")
+    pr = sub.add_parser("run", help="run a benchmark (config file, or -m MODEL for ad-hoc)")
     with_base_url(pr)
-    pr.add_argument("config", help="path to a benchmark config JSON")
+    pr.add_argument("config", nargs="?", default=None,
+                    help="path to a benchmark config JSON (or use -m instead)")
+    pr.add_argument("-m", "--model", action="append", default=None, metavar="MODEL",
+                    help="benchmark this model ad hoc, no config file needed "
+                         "(repeat for several)")
+    pr.add_argument("-p", "--prompt", default=None,
+                    help="inline prompt for an ad-hoc run (default: the "
+                         "short_qa prompt from the prompt set)")
+    pr.add_argument("--quick", action="store_true",
+                    help="1 repeat, no warm-up, no cold start: a fast look, "
+                         "not a publishable number")
     pr.add_argument("--prompts", default=DEFAULT_PROMPTS, help="prompt set JSON")
     pr.add_argument("--label", default=None, help="override system label")
     pr.add_argument("--runs", type=int, default=None, help="override measured repeats")
@@ -431,6 +516,8 @@ def main(argv=None) -> int:
 
     psum = sub.add_parser("summary", help="print metrics for saved results JSON")
     psum.add_argument("results", nargs="+", help="one or more results JSON files")
+    psum.add_argument("--json", action="store_true",
+                      help="flat per-cell records for jq/scripts instead of the table")
     psum.set_defaults(func=cmd_summary)
 
     prep = sub.add_parser("report", help="build HTML report from results JSON")

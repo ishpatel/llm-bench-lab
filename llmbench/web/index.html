@@ -55,6 +55,10 @@
 
   /* ---------- bench readiness ---------- */
   .drawertoggles{display:flex;gap:8px;flex-wrap:wrap;flex:none}
+  .samples{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:8px}
+  .samplechip{font:inherit;font-size:11.5px;padding:4px 11px;border-radius:20px;cursor:pointer;
+    border:1px solid var(--border);background:var(--card);color:var(--muted)}
+  .samplechip:hover{border-color:var(--accent);color:var(--accent)}
   /* Two toggles plus the chip bar need the room, so the tagline is the first
      thing to go on a narrow window rather than letting the brand wrap. */
   @media (max-width:1040px){ .brand .tagline{display:none} }
@@ -372,6 +376,17 @@
         <div class="help">The task or question you want to benchmark. Identical prompts across models or
           machines make for fair comparisons.</div>
         <textarea id="prompt" placeholder="Ask anything, or give the model a task that uses the attached files…"></textarea>
+        <div class="samples" id="samples">
+          <span class="hint">Not sure what to ask? Try one:</span>
+          <button type="button" class="samplechip" data-name="quick hello"
+            data-q="In one friendly sentence, say hello and name the model you are.">Quick hello</button>
+          <button type="button" class="samplechip" data-name="explain like I'm five"
+            data-q="Explain how a computer runs an AI model, in three sentences a ten-year-old would understand.">Explain simply</button>
+          <button type="button" class="samplechip" data-name="summarize a paragraph"
+            data-q="Summarize in one sentence: Local AI models run entirely on your own computer. Nothing you type is sent to the internet, and the speed you see depends on your hardware, especially how much memory the graphics chip can use.">Summarize text</button>
+          <button type="button" class="samplechip" data-name="stress the reader"
+            data-q="You are reviewing these notes before answering. A computer stores an AI model in fast memory next to the graphics chip. If the model is too big to fit, part of it is parked in slower memory, and every word generated then waits on the slow path, so answers crawl. Smaller or compressed models fit fully and answer quickly. Question: using only the notes, why can a smaller model feel faster than a bigger one?">Reading test</button>
+        </div>
       </div>
       <div class="field">
         <label>Attachments <span class="hint">(optional)</span></label>
@@ -493,7 +508,8 @@
         <th title="Your quality rating of the answer">Score</th>
         <th>When</th><th></th>
       </tr></thead><tbody id="runsBody"></tbody></table>
-      <div class="empty" id="runsEmpty" style="display:none">No runs yet. Start one in <b>New Run</b>.</div>
+      <div class="empty" id="runsEmpty" style="display:none">No runs yet.<br>
+        <button class="btn" style="margin-top:10px" onclick="document.querySelector('[data-tab=&quot;new&quot;]').click()">Run your first benchmark</button></div>
     </div>
   </section>
 
@@ -1015,6 +1031,13 @@ function updateModelCaps(){
   else el.innerHTML='Text-only: attached images are ignored (documents still work).';
 }
 $('#model').onchange=updateModelCaps;
+// One click from a blank page to a ready-to-run benchmark: fill the prompt and
+// a run name, and put focus on the Run button so Enter finishes the job.
+document.querySelectorAll('.samplechip').forEach(b=>b.onclick=()=>{
+  $('#prompt').value=b.dataset.q;
+  if(!$('#name').value)$('#name').value=b.dataset.name;
+  $('#submit').focus();
+});
 
 /* ---------------- OpenAI-compatible backend (TensorRT-LLM, NIM, vLLM) ---------------- */
 state.trtActive=false; state.savedModelHtml=null;

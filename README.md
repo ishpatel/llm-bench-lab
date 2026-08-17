@@ -53,6 +53,12 @@ should ship.
 Everything runs locally in your browser. Every metric carries a plain-English
 reading, because a number nobody can interpret does not travel.
 
+**Type nothing, learn something.** Pick a model, tap a sample prompt, press
+Run. The page explains every field, and the sample prompts are written so the
+first result already demonstrates something real about the machine.
+
+![New Run tab with one-tap sample prompts](docs/screenshots/10-new-run.png)
+
 **A benchmark run, explained.** Each metric has a verdict, tagged with the
 machine that produced it, alongside the model's answer and four dimensions for
 you to score it on. Speed means nothing if the output is wrong.
@@ -230,11 +236,40 @@ another machine to merge histories.
 
 ### The command line
 
+No config file needed for a quick look — name a model and go:
+
+```bash
+python bench.py run -m qwen3:4b-q4_K_M --quick
+```
+
+```bash
+python bench.py run -m qwen3:4b-q4_K_M -m qwen3:4b-fp16 -p "Summarize RAG in one sentence."
+```
+
+`--quick` is one repeat with no warm-up or cold start: a fast look, not a
+publishable number. Repeatable experiments still live in config files:
+
 ```bash
 python bench.py doctor                      # check the environment first
 python bench.py run configs/quant-sweep.json --label "M3 Max (48GB)"
 python bench.py summary results/*.json      # re-print metrics for saved results
 python bench.py report results/*.json --out results/report.html
+```
+
+Every surface scripts cleanly: `doctor --json` and `summary --json` emit
+machine-readable output (exit codes unchanged), so results pipe straight into
+jq or CI:
+
+```bash
+python bench.py summary results/*.json --json | jq '.[].cells[] | {model, gen_tps, residency}'
+```
+
+Installing is optional. `git clone` + `python bench.py ...` is the supported
+path, but `pip install -e .` (no dependencies — it only registers the command)
+puts `llmbench` on PATH so everything above works from any directory:
+
+```bash
+pip install -e . && llmbench doctor
 ```
 
 `run`, `summary` and `report` all print the same table: median speed, time to the
@@ -495,6 +530,7 @@ recognise, scoring a correct abstention as a failure.
 | `doctor` | Check dependencies and environment; exits 1 if anything blocks a run |
 | `info` | Print the detected system, Ollama status and installed models |
 | `run CONFIG` | Execute a benchmark config, print the metrics, write a results JSON |
+| `run -m MODEL [-p PROMPT] [--quick]` | Ad-hoc benchmark, no config file; `--quick` = 1 repeat, no warm-up |
 | `summary RESULTS...` | Re-print the metrics table for saved results files |
 | `report RESULTS...` | Build an HTML report; pass multiple files to compare machines |
 | `export RUN_ID` | Export a web-UI run to a portable `.llmbench.json` bundle |
