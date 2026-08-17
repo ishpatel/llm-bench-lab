@@ -55,6 +55,14 @@ should ship.
 Everything runs locally in your browser. Every metric carries a plain-English
 reading, because a number nobody can interpret does not travel.
 
+**It asks who it is talking to.** On first visit the app asks whether you are a
+beginner, intermediate, or advanced. Beginners get their setup checked, a good
+first model chosen, and a simpler screen. Intermediates pick their engine and
+models and decide which power features are visible. Advanced users get the whole
+lab, nothing hidden. The **Mode** button changes the answer any time.
+
+![First-visit mode chooser](docs/screenshots/11-welcome.png)
+
 **Type nothing, learn something.** Pick a model, tap a sample prompt, press
 Run. The page explains every field, and the sample prompts are written so the
 first result already demonstrates something real about the machine.

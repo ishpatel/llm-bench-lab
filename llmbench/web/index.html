@@ -59,6 +59,30 @@
   .samplechip{font:inherit;font-size:11.5px;padding:4px 11px;border-radius:20px;cursor:pointer;
     border:1px solid var(--border);background:var(--card);color:var(--muted)}
   .samplechip:hover{border-color:var(--accent);color:var(--accent)}
+  /* welcome / mode wizard */
+  .lvloverlay{position:fixed;inset:0;background:rgba(6,9,12,.78);backdrop-filter:blur(3px);
+    z-index:60;display:flex;align-items:center;justify-content:center;padding:20px}
+  .lvlcard{background:var(--bg);border:1px solid var(--border);border-radius:16px;
+    max-width:680px;width:100%;padding:26px 28px;box-shadow:0 18px 60px rgba(0,0,0,.5)}
+  .lvlcard h2{margin:0 0 4px;font-size:19px}
+  .lvlcard .lead{margin:0 0 16px;color:var(--muted);font-size:13px}
+  .lvlopts{display:grid;gap:10px}
+  .lvlopt{font:inherit;text-align:left;background:var(--card);border:1px solid var(--border);
+    border-radius:var(--radius);padding:13px 16px;cursor:pointer;color:var(--fg)}
+  .lvlopt:hover,.lvlopt.sel{border-color:var(--accent)}
+  .lvlopt .t{font-weight:750;font-size:14px}
+  .lvlopt .d{font-size:12.5px;margin-top:2px}
+  .lvlopt .m{font-size:11.5px;color:var(--muted);margin-top:3px}
+  .lvlsec{margin-top:14px}
+  .lvlsec>label{font-weight:650;font-size:13px;display:block;margin-bottom:6px}
+  .lvlchecks{display:flex;flex-direction:column;gap:6px;font-size:12.5px}
+  .lvlscroll{max-height:150px;overflow:auto;border:1px solid var(--border);
+    border-radius:var(--radius);padding:8px 10px}
+  .lvlrow{display:flex;align-items:center;gap:8px;cursor:pointer}
+  .lvlrow .hint{font-weight:400}
+  .lvlcheckline{display:flex;gap:8px;align-items:baseline}
+  .lvlcheckline .ok{color:var(--good)} .lvlcheckline .bad{color:var(--bad)}
+  .lvlactions{display:flex;justify-content:space-between;margin-top:18px}
   /* Two toggles plus the chip bar need the room, so the tagline is the first
      thing to go on a narrow window rather than letting the brand wrap. */
   @media (max-width:1040px){ .brand .tagline{display:none} }
@@ -289,6 +313,7 @@
   <div class="drawertoggles">
     <button class="ghost small" id="sysToggle" data-drawer="sysDrawer">System details ▾</button>
     <button class="ghost small" id="readyToggle" data-drawer="readyDrawer">Bench readiness ▾</button>
+    <button class="ghost small" id="levelBtn" title="Change how much the app explains and exposes">Mode</button>
   </div>
 </header>
 
@@ -313,6 +338,75 @@
     </div>
     <div id="readyBanner" class="rbanner"><span class="hint">checking…</span></div>
     <div class="readygrid" id="readyGrid"></div>
+  </div>
+</div>
+
+<div class="lvloverlay" id="lvlOverlay" style="display:none">
+  <div class="lvlcard" role="dialog" aria-modal="true" aria-labelledby="lvlTitle">
+
+    <div id="lvlStep1">
+      <h2 id="lvlTitle">Welcome to <b>llm</b>bench</h2>
+      <p class="lead">How much should the app explain and expose? You can change this
+        any time with the <b>Mode</b> button in the header.</p>
+      <div class="lvlopts">
+        <button class="lvlopt" data-level="beginner">
+          <div class="t">Beginner</div>
+          <div class="d">I'm just getting started with local AI.</div>
+          <div class="m">We check your setup, pick a good first model, and keep the
+            screen simple.</div>
+        </button>
+        <button class="lvlopt" data-level="intermediate">
+          <div class="t">Intermediate</div>
+          <div class="d">I know the fundamentals; I want real experience.</div>
+          <div class="m">Choose your engine and models, and decide which power
+            features are visible.</div>
+        </button>
+        <button class="lvlopt" data-level="advanced">
+          <div class="t">Advanced</div>
+          <div class="d">I do this as a hobby or a job.</div>
+          <div class="m">Everything on, nothing hidden, no hand-holding.</div>
+        </button>
+      </div>
+    </div>
+
+    <div id="lvlStepBeg" style="display:none">
+      <h2>Checking your setup…</h2>
+      <p class="lead">Making sure this machine can run a benchmark, then picking
+        sensible defaults for you.</p>
+      <div id="lvlBegChecks" class="lvlchecks"><span class="hint">checking…</span></div>
+      <div class="lvlactions">
+        <button class="ghost" data-lvlback>Back</button>
+        <button class="btn" id="lvlBegGo" disabled>Checking…</button>
+      </div>
+    </div>
+
+    <div id="lvlStepInt" style="display:none">
+      <h2>Set up your bench</h2>
+      <div class="lvlsec">
+        <label>Which engine are you using?</label>
+        <div id="lvlEngines" class="lvlchecks"><span class="hint">looking for engines…</span></div>
+      </div>
+      <div class="lvlsec">
+        <label>Which models do you want in the picker? <span class="hint">(all, if none ticked)</span></label>
+        <div id="lvlModels" class="lvlchecks lvlscroll"><span class="hint">pick an engine first</span></div>
+      </div>
+      <div class="lvlsec">
+        <label>What should be visible?</label>
+        <div class="lvlchecks">
+          <label class="lvlrow"><input type="checkbox" id="lvlShowAdv" checked style="width:auto">
+            Advanced measurement settings <span class="hint">(repeats, warm-up, cold start, temperature)</span></label>
+          <label class="lvlrow"><input type="checkbox" id="lvlShowEng" checked style="width:auto">
+            Engine switcher on the run form</label>
+          <label class="lvlrow"><input type="checkbox" id="lvlShowLab" checked style="width:auto">
+            The full lab <span class="hint">(Cross-System, Copilot, Agent, Evals tabs)</span></label>
+        </div>
+      </div>
+      <div class="lvlactions">
+        <button class="ghost" data-lvlback>Back</button>
+        <button class="btn" id="lvlIntGo">Apply and start</button>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -351,7 +445,7 @@
         </div>
       </div>
       <div class="field">
-        <label><input type="checkbox" id="trt" style="width:auto"> Use another engine <span class="hint">(LM Studio, llama.cpp, vLLM, Jan, GPT4All, TensorRT-LLM/NIM)</span></label>
+        <label id="engineLabel"><input type="checkbox" id="trt" style="width:auto"> Use another engine <span class="hint">(LM Studio, llama.cpp, vLLM, Jan, GPT4All, TensorRT-LLM/NIM)</span></label>
         <div class="samples" id="engineFound" style="display:none;margin:6px 0 2px"></div>
         <div class="help" id="trtHelp">Benchmark through another inference engine instead of Ollama. Any
           server speaking the OpenAI-compatible API works: NVIDIA's <span class="mono">trtllm-serve</span>
@@ -398,7 +492,7 @@
         <input type="file" id="file" multiple style="display:none">
         <div class="chips" id="chips"></div>
       </div>
-      <details class="adv">
+      <details class="adv" id="advPanel">
         <summary>Advanced: measurement &amp; generation settings <span class="hint">(sensible defaults; open to tune)</span></summary>
         <div class="row3">
           <div class="field">
@@ -754,6 +848,174 @@ document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
 });
 
 /* ---------------- system panel ---------------- */
+/* ---------------- experience levels ---------------- */
+// Three audiences, one app. Beginner gets a checked environment, a chosen
+// model and a simple screen; intermediate picks an engine, a model list and
+// what is visible; advanced is the whole lab exactly as built. The choice is
+// asked once, remembered, and changeable from the Mode button.
+const LVL_KEY='llmbench.level', LVL_PREFS='llmbench.prefs';
+function getLevel(){try{return localStorage.getItem(LVL_KEY)}catch(e){return null}}
+function getPrefs(){try{return JSON.parse(localStorage.getItem(LVL_PREFS)||'{}')}catch(e){return {}}}
+function saveLevel(level,prefs){try{localStorage.setItem(LVL_KEY,level);
+  localStorage.setItem(LVL_PREFS,JSON.stringify(prefs||{}));}catch(e){}}
+
+const POWER_TABS=['cross','copilot','agent','evals'];
+
+function applyLevel(){
+  const level=getLevel()||'advanced', prefs=getPrefs();
+  const showAdv   = level==='advanced' || (level==='intermediate' && prefs.showAdv!==false);
+  const showEng   = level==='advanced' || (level==='intermediate' && prefs.showEng!==false);
+  const showLab   = level==='advanced' || (level==='intermediate' && prefs.showLab!==false);
+  $('#advPanel').style.display=showAdv?'':'none';
+  ['#engineLabel','#trtHelp','#engineFound'].forEach(sel=>{
+    const el=$(sel);if(el)el.style.display=showEng?'':'none';});
+  if(!showEng){$('#trtRow').style.display='none';}
+  POWER_TABS.forEach(t=>{
+    const b=document.querySelector(`[data-tab="${t}"]`);
+    if(b){b.style.display=showLab?'':'none';
+      if(!showLab&&b.classList.contains('active'))
+        document.querySelector('[data-tab="new"]').click();}});
+  // An intermediate choice of an OpenAI engine has to survive a reload:
+  // re-drive the same connect path once, exactly as the wizard's Apply did.
+  if(level==='intermediate'&&prefs.engine&&prefs.engine.kind==='openai'
+     &&!state.trtActive&&!state.lvlReconnecting){
+    state.lvlReconnecting=true;
+    $('#trt').checked=true;$('#trtRow').style.display=showEng?'':'none';
+    $('#trtUrl').value=prefs.engine.base_url;$('#trtLabel').value=prefs.engine.label;
+    checkTrt().then(()=>{state.lvlReconnecting=false;applyLevel();});
+  }
+  // Intermediate model list: hide unticked models, but only when the ticked
+  // names exist in the current picker. The saved list belongs to one engine;
+  // applied to another engine's models it would empty the picker entirely.
+  const sel=$('#model');
+  if(sel){
+    const wanted=(level==='intermediate'&&Array.isArray(prefs.models)&&prefs.models.length)
+      ? new Set(prefs.models):null;
+    const applies=wanted&&[...sel.options].some(o=>wanted.has(o.value));
+    [...sel.options].forEach(o=>{o.hidden=!!(applies&&!wanted.has(o.value)&&!o.disabled);});
+    if(applies&&sel.selectedOptions[0]&&sel.selectedOptions[0].hidden){
+      const first=[...sel.options].find(o=>!o.hidden&&!o.disabled);
+      if(first){sel.value=first.value;updateModelCaps();}
+    }
+  }
+  const label={beginner:'Beginner',intermediate:'Intermediate',advanced:'Advanced'}[level];
+  $('#levelBtn').textContent=`Mode: ${label}`;
+}
+
+// Smallest sensible first model for a beginner: no size metadata exists, so a
+// name heuristic stands in, preferring the small quantized tags and never fp16.
+function pickBeginnerModel(){
+  const gen=state.models.filter(m=>m.generative&&!m.embedding);
+  const score=m=>{const n=m.name.toLowerCase();let v=50;
+    for(const [pat,sc] of [[/nano|mini|tiny/,0],[/[^0-9]1b/,5],[/3b/,10],[/4b/,15],
+                           [/7b|8b/,30],[/1[0-9]b/,60]]) if(pat.test(n)){v=sc;break;}
+    if(/fp16/.test(n))v+=40; if(/q8/.test(n))v+=8;
+    return v;};
+  return gen.sort((a,b)=>score(a)-score(b))[0];
+}
+
+function lvlShow(step){
+  ['#lvlStep1','#lvlStepBeg','#lvlStepInt'].forEach(x=>$(x).style.display='none');
+  $(step).style.display='';
+}
+function openLevelModal(){
+  $('#lvlOverlay').style.display='flex';lvlShow('#lvlStep1');
+  const cur=getLevel();
+  document.querySelectorAll('.lvlopt').forEach(b=>
+    b.classList.toggle('sel',b.dataset.level===cur));
+}
+function closeLevelModal(){$('#lvlOverlay').style.display='none';}
+
+document.querySelectorAll('[data-lvlback]').forEach(b=>b.onclick=()=>lvlShow('#lvlStep1'));
+$('#levelBtn').onclick=openLevelModal;
+
+document.querySelectorAll('.lvlopt').forEach(b=>b.onclick=()=>{
+  const level=b.dataset.level;
+  if(level==='advanced'){saveLevel('advanced',{});applyLevel();closeLevelModal();return;}
+  if(level==='beginner')return beginnerFlow();
+  intermediateFlow();
+});
+
+/* -- beginner: check the environment, then hand over a ready form -- */
+async function beginnerFlow(){
+  lvlShow('#lvlStepBeg');
+  const box=$('#lvlBegChecks'),go=$('#lvlBegGo');
+  go.disabled=true;go.textContent='Checking…';
+  let rd=null;try{rd=await (await fetch('/api/readiness')).json();}catch(e){}
+  if(!rd){box.innerHTML='<span style="color:var(--bad)">Could not run the checks.</span>';
+    go.disabled=false;go.textContent='Continue anyway';go.onclick=()=>finishBeginner(false);return;}
+  box.innerHTML=rd.checks.map(c=>{
+    const ok=c.status==='ok';
+    return `<div class="lvlcheckline"><span class="${ok?'ok':'bad'}">${ok?'✓':'✗'}</span>
+      <span>${esc(c.label)}<span class="hint"> — ${esc(c.detail)}</span></span></div>`;
+  }).join('');
+  const blocked=rd.state==='fail';
+  go.disabled=false;
+  go.textContent=blocked?'Open the fix-it checklist':'Start benchmarking';
+  go.onclick=()=>finishBeginner(blocked);
+}
+function finishBeginner(blocked){
+  saveLevel('beginner',{});applyLevel();closeLevelModal();
+  if(blocked){openDrawer('readyDrawer');
+    $('#readyBanner').scrollIntoView({behavior:'smooth',block:'center'});return;}
+  const m=pickBeginnerModel();
+  if(m){$('#model').value=m.name;updateModelCaps();}
+  if(!$('#prompt').value){
+    // scope to the sample-prompt row: the engine chips share the class but
+    // carry no prompt, and the bare selector once filled the box with
+    // the string "undefined"
+    const chip=document.querySelector('#samples .samplechip');
+    if(chip){$('#prompt').value=chip.dataset.q;$('#name').value=chip.dataset.name;}
+  }
+  toast('Ready. Press “Run benchmark” to take your first measurement.');
+}
+
+/* -- intermediate: engine, models, visibility -- */
+let lvlEngineChoice=null;
+async function intermediateFlow(){
+  lvlShow('#lvlStepInt');
+  const box=$('#lvlEngines');
+  let d=null;try{d=await (await fetch('/api/engines')).json();}catch(e){}
+  const found=(d&&d.engines)||[];
+  if(!found.length){
+    box.innerHTML='<span style="color:var(--bad)">No engine detected.</span> '
+      +'<span class="hint">Start Ollama, LM Studio, llama-server, vLLM, Jan or '
+      +'GPT4All, then reopen Mode.</span>';
+    $('#lvlModels').innerHTML='<span class="hint">no engine yet</span>';return;}
+  box.innerHTML=found.map((e,i)=>{
+    const port=e.base_url.rsplit?e.base_url.split(':').pop():'';
+    return `<label class="lvlrow"><input type="radio" name="lvleng" value="${i}"
+      ${i===0?'checked':''} style="width:auto"> ${esc(e.label)}
+      <span class="hint">${esc(e.base_url)} · ${e.models.length} model${e.models.length===1?'':'s'}</span></label>`;
+  }).join('');
+  const renderModels=i=>{
+    lvlEngineChoice=found[i];
+    const ms=lvlEngineChoice.models;
+    $('#lvlModels').innerHTML=ms.length?ms.map(m=>
+      `<label class="lvlrow"><input type="checkbox" value="${esc(m)}" style="width:auto"> ${esc(m)}</label>`
+    ).join(''):'<span class="hint">this engine lists no models</span>';
+  };
+  renderModels(0);
+  box.querySelectorAll('input[name=lvleng]').forEach(r=>
+    r.onchange=()=>renderModels(+r.value));
+  $('#lvlIntGo').onclick=()=>{
+    const models=[...$('#lvlModels').querySelectorAll('input:checked')].map(i=>i.value);
+    saveLevel('intermediate',{
+      showAdv:$('#lvlShowAdv').checked, showEng:$('#lvlShowEng').checked,
+      showLab:$('#lvlShowLab').checked, models,
+      engine:lvlEngineChoice?{kind:lvlEngineChoice.kind,base_url:lvlEngineChoice.base_url,
+                              label:lvlEngineChoice.label}:null});
+    closeLevelModal();
+    const eng=lvlEngineChoice;
+    if(eng&&eng.kind==='openai'){
+      $('#trt').checked=true;$('#trtRow').style.display='';
+      $('#trtUrl').value=eng.base_url;$('#trtLabel').value=eng.label;
+      checkTrt().then(()=>applyLevel());
+    }else{applyLevel();}
+    toast('Set. Change any of this later with the Mode button.');
+  };
+}
+
 /* ---------------- header drawers ---------------- */
 // Two panels that open and close independently. The chip bar above them is the
 // always-visible summary of both, so neither has to be open to see whether the
@@ -1019,8 +1281,10 @@ async function init(){
       }
     }
   }catch(e){$('#sysChips').innerHTML='<span class="hwchip" style="color:var(--bad)">API error</span>';}
-  loadEngines();     // other local engines (LM Studio, llama.cpp, ...) get one-click chips
+  loadEngines().then(()=>applyLevel());  // chips first, then level gating
   loadReadiness();   // runs regardless: an unreachable engine is itself a result
+  applyLevel();
+  if(!getLevel())openLevelModal();       // first visit: ask who we are talking to
   loadRuns();
 }
 
