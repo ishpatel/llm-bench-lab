@@ -1,0 +1,449 @@
+{
+  "meta": {
+    "config_name": "thinking-cost-on",
+    "system": {
+      "os": "Darwin",
+      "os_version": "27.0.0",
+      "machine": "arm64",
+      "python": "3.9.6",
+      "accelerator": "apple-metal",
+      "hw_model": "Mac15,9",
+      "unified_memory_mb": "49152",
+      "gpu": "Apple M3 Max (unified)",
+      "label": "Apple M3 Max (unified)"
+    },
+    "options": {
+      "temperature": 0,
+      "num_predict": 1024,
+      "think": true
+    },
+    "runs": 2,
+    "warmup": 1,
+    "measure_cold_start": false,
+    "engine": "Ollama",
+    "ollama_version": "ollama version is 0.32.14"
+  },
+  "cells": [
+    {
+      "label": "qwen3:8b-q4_K_M \u00b7 reasoning",
+      "model": "qwen3:8b-q4_K_M",
+      "context_length": null,
+      "prompt_key": "reasoning",
+      "prompt_note": "Medium prompt, structured reasoning \u2014 representative interactive task.",
+      "prompt_text": "Explain, step by step and concisely, how quantizing an LLM from FP16 to INT4 affects (1) memory footprint, (2) inference throughput, and (3) output quality. Keep it under 200 words.",
+      "attachments": {
+        "files": [],
+        "images": [],
+        "assembled_chars": 181,
+        "assembled_approx_tokens": 45
+      },
+      "residency": "100% GPU",
+      "cold_start": null,
+      "runs": [
+        {
+          "model": "qwen3:8b-q4_K_M",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 181.35241600000109,
+          "ttfv_ms": 5721.522583000003,
+          "wall_total_ms": 7946.19925,
+          "load_ms": 123.977791,
+          "total_ms": 7943.200458,
+          "prompt_eval_ms": 17.124,
+          "eval_ms": 7795.233,
+          "prompt_tokens": 63,
+          "output_tokens": 480,
+          "gen_tps": 61.576094005143915,
+          "prompt_tps": 3679.0469516468115,
+          "response_text": "Quantizing an LLM from FP16 to INT4 reduces memory footprint by 75% (16-bit \u2192 4-bit per parameter), enabling larger models or efficient deployment on memory-constrained hardware. This compression also accelerates inference throughput, as lower-precision operations (INT4) are faster to compute than FP16, improving tokens-per-second rates, especially on hardware optimized for integer arithmetic. However, output quality may degrade slightly due to reduced numerical precision, though techniques like dynamic scaling or mixed-precision training can mitigate this. The trade-off balances speed and memory gains against minor accuracy losses, making INT4 suitable for latency-sensitive or resource-limited scenarios.",
+          "thinking_chars": 1648,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": false,
+            "samples": 0,
+            "util_peak": null,
+            "util_avg": null,
+            "vram_used_peak_mb": null,
+            "power_peak_w": null,
+            "power_avg_w": null,
+            "temp_peak_c": null
+          }
+        },
+        {
+          "model": "qwen3:8b-q4_K_M",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 177.3771669999995,
+          "ttfv_ms": 5728.898542,
+          "wall_total_ms": 7957.839374999999,
+          "load_ms": 124.411584,
+          "total_ms": 7954.959834,
+          "prompt_eval_ms": 17.56,
+          "eval_ms": 7811.256,
+          "prompt_tokens": 63,
+          "output_tokens": 480,
+          "gen_tps": 61.44978477212884,
+          "prompt_tps": 3587.6993166287016,
+          "response_text": "Quantizing an LLM from FP16 to INT4 reduces memory footprint by 75% (16-bit \u2192 4-bit per parameter), enabling larger models or efficient deployment on memory-constrained hardware. This compression also accelerates inference throughput, as lower-precision operations (INT4) are faster to compute than FP16, improving tokens-per-second rates, especially on hardware optimized for integer arithmetic. However, output quality may degrade slightly due to reduced numerical precision, though techniques like dynamic scaling or mixed-precision training can mitigate this. The trade-off balances speed and memory gains against minor accuracy losses, making INT4 suitable for latency-sensitive or resource-limited scenarios.",
+          "thinking_chars": 1648,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": false,
+            "samples": 0,
+            "util_peak": null,
+            "util_avg": null,
+            "vram_used_peak_mb": null,
+            "power_peak_w": null,
+            "power_avg_w": null,
+            "temp_peak_c": null
+          }
+        }
+      ],
+      "aggregate": {
+        "n_ok": 2,
+        "n_total": 2,
+        "gen_tps": {
+          "median": 61.512939388636376,
+          "min": 61.44978477212884,
+          "max": 61.576094005143915,
+          "stdev": 0.06315461650753917
+        },
+        "prompt_tps": {
+          "median": 3633.3731341377566,
+          "min": 3587.6993166287016,
+          "max": 3679.0469516468115,
+          "stdev": 45.67381750905497
+        },
+        "ttft_ms": {
+          "median": 179.3647915000003,
+          "min": 177.3771669999995,
+          "max": 181.35241600000109,
+          "stdev": 1.9876245000007913
+        },
+        "ttfv_ms": {
+          "median": 5725.210562500001,
+          "min": 5721.522583000003,
+          "max": 5728.898542,
+          "stdev": 3.687979499998619
+        },
+        "wall_total_ms": {
+          "median": 7952.019312499999,
+          "min": 7946.19925,
+          "max": 7957.839374999999,
+          "stdev": 5.820062499999494
+        },
+        "load_ms": {
+          "median": 124.1946875,
+          "min": 123.977791,
+          "max": 124.411584,
+          "stdev": 0.21689650000000427
+        },
+        "eval_ms": {
+          "median": 7803.244500000001,
+          "min": 7795.233,
+          "max": 7811.256,
+          "stdev": 8.01150000000007
+        },
+        "prompt_eval_ms": {
+          "median": 17.342,
+          "min": 17.124,
+          "max": 17.56,
+          "stdev": 0.21799999999999997
+        },
+        "output_tokens": {
+          "median": 480.0,
+          "min": 480,
+          "max": 480,
+          "stdev": 0.0
+        },
+        "prompt_tokens": {
+          "median": 63.0,
+          "min": 63,
+          "max": 63,
+          "stdev": 0.0
+        }
+      }
+    },
+    {
+      "label": "gemma4:26b \u00b7 reasoning",
+      "model": "gemma4:26b",
+      "context_length": null,
+      "prompt_key": "reasoning",
+      "prompt_note": "Medium prompt, structured reasoning \u2014 representative interactive task.",
+      "prompt_text": "Explain, step by step and concisely, how quantizing an LLM from FP16 to INT4 affects (1) memory footprint, (2) inference throughput, and (3) output quality. Keep it under 200 words.",
+      "attachments": {
+        "files": [],
+        "images": [],
+        "assembled_chars": 181,
+        "assembled_approx_tokens": 45
+      },
+      "residency": "100% GPU",
+      "cold_start": null,
+      "runs": [
+        {
+          "model": "gemma4:26b",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 401.9989580000001,
+          "ttfv_ms": 7827.945041,
+          "wall_total_ms": 10939.019333000004,
+          "load_ms": 304.107458,
+          "total_ms": 10935.253416,
+          "prompt_eval_ms": 43.42,
+          "eval_ms": 10572.982,
+          "prompt_tokens": 66,
+          "output_tokens": 847,
+          "gen_tps": 80.10984980396259,
+          "prompt_tps": 1520.0368493781668,
+          "response_text": "Quantizing an LLM from FP16 to INT4 impacts the model as follows:\n\n1.  **Memory Footprint: Significant Reduction**\n    FP16 uses 16 bits (2 bytes) per parameter, while INT4 uses only 4 bits (0.5 bytes). This reduces the VRAM required to store the model weights by approximately **4x**, allowing much larger models to fit on consumer-grade GPUs.\n\n2.  **Inference Throughput: Significant Increase**\n    LLM inference is typically \"memory-bandwidth bound,\" meaning the bottleneck is how fast data moves from VRAM to the processor. Because INT4 requires transferring 75% less data per parameter, the speed of token generation (tokens per second) increases substantially.\n\n3.  **Output Quality: Slight Degradation**\n    Quantization introduces \"quantization error\" because continuous values are rounded into discrete 4-bit bins. This loss of precision can increase perplexity and lead to a measurable drop in reasoning capabilities or factual accuracy. However, modern techniques like **GPTQ** or **AWQ** use calibration to minimize this loss, making the quality degradation often negligible for many use cases.",
+          "thinking_chars": 2409,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": false,
+            "samples": 0,
+            "util_peak": null,
+            "util_avg": null,
+            "vram_used_peak_mb": null,
+            "power_peak_w": null,
+            "power_avg_w": null,
+            "temp_peak_c": null
+          }
+        },
+        {
+          "model": "gemma4:26b",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 400.180749999997,
+          "ttfv_ms": 7826.987457999998,
+          "wall_total_ms": 10932.265207999997,
+          "load_ms": 302.369083,
+          "total_ms": 10928.784791,
+          "prompt_eval_ms": 42.741,
+          "eval_ms": 10567.558,
+          "prompt_tokens": 66,
+          "output_tokens": 847,
+          "gen_tps": 80.15096770701425,
+          "prompt_tps": 1544.1847406471538,
+          "response_text": "Quantizing an LLM from FP16 to INT4 impacts the model as follows:\n\n1.  **Memory Footprint: Significant Reduction**\n    FP16 uses 16 bits (2 bytes) per parameter, while INT4 uses only 4 bits (0.5 bytes). This reduces the VRAM required to store the model weights by approximately **4x**, allowing much larger models to fit on consumer-grade GPUs.\n\n2.  **Inference Throughput: Significant Increase**\n    LLM inference is typically \"memory-bandwidth bound,\" meaning the bottleneck is how fast data moves from VRAM to the processor. Because INT4 requires transferring 75% less data per parameter, the speed of token generation (tokens per second) increases substantially.\n\n3.  **Output Quality: Slight Degradation**\n    Quantization introduces \"quantization error\" because continuous values are rounded into discrete 4-bit bins. This loss of precision can increase perplexity and lead to a measurable drop in reasoning capabilities or factual accuracy. However, modern techniques like **GPTQ** or **AWQ** use calibration to minimize this loss, making the quality degradation often negligible for many use cases.",
+          "thinking_chars": 2409,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": false,
+            "samples": 0,
+            "util_peak": null,
+            "util_avg": null,
+            "vram_used_peak_mb": null,
+            "power_peak_w": null,
+            "power_avg_w": null,
+            "temp_peak_c": null
+          }
+        }
+      ],
+      "aggregate": {
+        "n_ok": 2,
+        "n_total": 2,
+        "gen_tps": {
+          "median": 80.13040875548842,
+          "min": 80.10984980396259,
+          "max": 80.15096770701425,
+          "stdev": 0.020558951525828206
+        },
+        "prompt_tps": {
+          "median": 1532.1107950126602,
+          "min": 1520.0368493781668,
+          "max": 1544.1847406471538,
+          "stdev": 12.073945634493498
+        },
+        "ttft_ms": {
+          "median": 401.0898539999985,
+          "min": 400.180749999997,
+          "max": 401.9989580000001,
+          "stdev": 0.9091040000015482
+        },
+        "ttfv_ms": {
+          "median": 7827.466249499999,
+          "min": 7826.987457999998,
+          "max": 7827.945041,
+          "stdev": 0.47879150000107984
+        },
+        "wall_total_ms": {
+          "median": 10935.6422705,
+          "min": 10932.265207999997,
+          "max": 10939.019333000004,
+          "stdev": 3.377062500003376
+        },
+        "load_ms": {
+          "median": 303.2382705,
+          "min": 302.369083,
+          "max": 304.107458,
+          "stdev": 0.8691875000000095
+        },
+        "eval_ms": {
+          "median": 10570.27,
+          "min": 10567.558,
+          "max": 10572.982,
+          "stdev": 2.7119999999995343
+        },
+        "prompt_eval_ms": {
+          "median": 43.0805,
+          "min": 42.741,
+          "max": 43.42,
+          "stdev": 0.339500000000001
+        },
+        "output_tokens": {
+          "median": 847.0,
+          "min": 847,
+          "max": 847,
+          "stdev": 0.0
+        },
+        "prompt_tokens": {
+          "median": 66.0,
+          "min": 66,
+          "max": 66,
+          "stdev": 0.0
+        }
+      }
+    },
+    {
+      "label": "qwen3.6:27b \u00b7 reasoning",
+      "model": "qwen3.6:27b",
+      "context_length": null,
+      "prompt_key": "reasoning",
+      "prompt_note": "Medium prompt, structured reasoning \u2014 representative interactive task.",
+      "prompt_text": "Explain, step by step and concisely, how quantizing an LLM from FP16 to INT4 affects (1) memory footprint, (2) inference throughput, and (3) output quality. Keep it under 200 words.",
+      "attachments": {
+        "files": [],
+        "images": [],
+        "assembled_chars": 181,
+        "assembled_approx_tokens": 45
+      },
+      "residency": "100% GPU",
+      "cold_start": null,
+      "runs": [
+        {
+          "model": "qwen3.6:27b",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 415.55512499999736,
+          "ttfv_ms": null,
+          "wall_total_ms": 57743.19045799999,
+          "load_ms": 221.851334,
+          "total_ms": 57739.853375,
+          "prompt_eval_ms": 168.567,
+          "eval_ms": 57325.132,
+          "prompt_tokens": 63,
+          "output_tokens": 1024,
+          "gen_tps": 17.863020359028567,
+          "prompt_tps": 373.7386321166065,
+          "response_text": "",
+          "thinking_chars": 4269,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": false,
+            "samples": 0,
+            "util_peak": null,
+            "util_avg": null,
+            "vram_used_peak_mb": null,
+            "power_peak_w": null,
+            "power_avg_w": null,
+            "temp_peak_c": null
+          }
+        },
+        {
+          "model": "qwen3.6:27b",
+          "ok": true,
+          "error": null,
+          "ttft_ms": 387.1495829999958,
+          "ttfv_ms": null,
+          "wall_total_ms": 59390.30079099999,
+          "load_ms": 222.653083,
+          "total_ms": 59387.33275,
+          "prompt_eval_ms": 162.271,
+          "eval_ms": 59000.825,
+          "prompt_tokens": 63,
+          "output_tokens": 1024,
+          "gen_tps": 17.35568951790081,
+          "prompt_tps": 388.23942663815467,
+          "response_text": "",
+          "thinking_chars": 4269,
+          "approximate_tokens": false,
+          "stream_chunks": null,
+          "gpu": {
+            "available": false,
+            "samples": 0,
+            "util_peak": null,
+            "util_avg": null,
+            "vram_used_peak_mb": null,
+            "power_peak_w": null,
+            "power_avg_w": null,
+            "temp_peak_c": null
+          }
+        }
+      ],
+      "aggregate": {
+        "n_ok": 2,
+        "n_total": 2,
+        "gen_tps": {
+          "median": 17.60935493846469,
+          "min": 17.35568951790081,
+          "max": 17.863020359028567,
+          "stdev": 0.25366542056387864
+        },
+        "prompt_tps": {
+          "median": 380.9890293773806,
+          "min": 373.7386321166065,
+          "max": 388.23942663815467,
+          "stdev": 7.250397260774093
+        },
+        "ttft_ms": {
+          "median": 401.3523539999966,
+          "min": 387.1495829999958,
+          "max": 415.55512499999736,
+          "stdev": 14.20277100000078
+        },
+        "ttfv_ms": null,
+        "wall_total_ms": {
+          "median": 58566.74562449999,
+          "min": 57743.19045799999,
+          "max": 59390.30079099999,
+          "stdev": 823.5551664999984
+        },
+        "load_ms": {
+          "median": 222.2522085,
+          "min": 221.851334,
+          "max": 222.653083,
+          "stdev": 0.40087450000000047
+        },
+        "eval_ms": {
+          "median": 58162.9785,
+          "min": 57325.132,
+          "max": 59000.825,
+          "stdev": 837.8464999999997
+        },
+        "prompt_eval_ms": {
+          "median": 165.41899999999998,
+          "min": 162.271,
+          "max": 168.567,
+          "stdev": 3.1480000000000103
+        },
+        "output_tokens": {
+          "median": 1024.0,
+          "min": 1024,
+          "max": 1024,
+          "stdev": 0.0
+        },
+        "prompt_tokens": {
+          "median": 63.0,
+          "min": 63,
+          "max": 63,
+          "stdev": 0.0
+        }
+      }
+    }
+  ]
+}

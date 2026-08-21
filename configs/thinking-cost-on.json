@@ -1,0 +1,10 @@
+{
+  "name": "thinking-cost-on",
+  "runs": 2,
+  "warmup": 1,
+  "measure_cold_start": false,
+  "options": { "temperature": 0, "num_predict": 1024, "think": true },
+  "models": ["qwen3:8b-q4_K_M", "gemma4:26b", "qwen3.6:27b"],
+  "context_lengths": [null],
+  "prompts": ["reasoning"]
+}

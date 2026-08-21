@@ -1,0 +1,12 @@
+{
+  "name": "workloads",
+  "runs": 2,
+  "warmup": 1,
+  "measure_cold_start": true,
+  "options": { "temperature": 0, "num_predict": 700, "think": false },
+  "models": ["nemotron-3-nano:4b", "qwen3:4b-q4_K_M", "qwen3:8b-q4_K_M",
+             "gemma3:12b-it-q4_K_M", "gemma4:26b", "qwen3.6:27b"],
+  "context_lengths": [null],
+  "prompts": ["email_decline", "meeting_summary", "json_extract",
+              "code_bugfix", "long_form"]
+}

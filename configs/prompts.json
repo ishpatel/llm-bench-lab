@@ -1,14 +1,48 @@
 {
   "short_qa": {
     "text": "In one sentence, what is a KV cache in transformer LLM inference?",
-    "note": "Short prompt, short answer — isolates decode speed with minimal prefill."
+    "note": "Short prompt, short answer \u2014 isolates decode speed with minimal prefill."
   },
   "reasoning": {
     "text": "Explain, step by step and concisely, how quantizing an LLM from FP16 to INT4 affects (1) memory footprint, (2) inference throughput, and (3) output quality. Keep it under 200 words.",
-    "note": "Medium prompt, structured reasoning — representative interactive task."
+    "note": "Medium prompt, structured reasoning \u2014 representative interactive task."
   },
   "prefill_stress": {
-    "text": "You are reviewing the following notes before answering.\n\nLocal AI inference on client hardware is bounded by several distinct resources, and confusing them is a common mistake. Model weights occupy memory proportional to parameter count and precision: a 7-billion-parameter model at FP16 needs roughly 14 GB just for weights, while the same model quantized to 4-bit needs closer to 4 GB. But weights are only one consumer of memory. The KV cache grows with both context length and batch size, and at long context it can rival or exceed the size of the weights themselves. Activations and workspace scratch memory add further overhead. On a discrete GPU with a fixed VRAM budget, exceeding capacity forces the runtime to offload layers to system RAM, and the resulting transfers across the PCIe bus dominate latency, collapsing throughput. On a unified-memory system the CPU and GPU share one pool, so there is no discrete-VRAM ceiling in the same sense, but total system memory and memory bandwidth still bound what is practical. Separately, compute throughput — how fast the accelerator performs the matrix multiplications that dominate attention and the feed-forward layers — determines the ceiling on tokens per second once everything is resident. Memory capacity and compute throughput are therefore independent constraints: a workload can be memory-bound, compute-bound, or bandwidth-bound, and the bottleneck can shift as context length grows. Quantization primarily relieves the memory-capacity constraint and can improve throughput by reducing the bytes moved per operation, at some risk to output quality. Time to first token is dominated by model load plus prompt prefill, while steady-state tokens per second reflects decode speed; these are different metrics and a system can be strong at one and weak at the other.\n\nBased only on the notes above, answer in three sentences: why can a model that fits in a GPU's VRAM still run slowly as the conversation gets longer?",
-    "note": "Long prefill (~400 tokens of context) — stresses prompt-processing / prefill throughput and exercises KV-cache growth."
+    "text": "You are reviewing the following notes before answering.\n\nLocal AI inference on client hardware is bounded by several distinct resources, and confusing them is a common mistake. Model weights occupy memory proportional to parameter count and precision: a 7-billion-parameter model at FP16 needs roughly 14 GB just for weights, while the same model quantized to 4-bit needs closer to 4 GB. But weights are only one consumer of memory. The KV cache grows with both context length and batch size, and at long context it can rival or exceed the size of the weights themselves. Activations and workspace scratch memory add further overhead. On a discrete GPU with a fixed VRAM budget, exceeding capacity forces the runtime to offload layers to system RAM, and the resulting transfers across the PCIe bus dominate latency, collapsing throughput. On a unified-memory system the CPU and GPU share one pool, so there is no discrete-VRAM ceiling in the same sense, but total system memory and memory bandwidth still bound what is practical. Separately, compute throughput \u2014 how fast the accelerator performs the matrix multiplications that dominate attention and the feed-forward layers \u2014 determines the ceiling on tokens per second once everything is resident. Memory capacity and compute throughput are therefore independent constraints: a workload can be memory-bound, compute-bound, or bandwidth-bound, and the bottleneck can shift as context length grows. Quantization primarily relieves the memory-capacity constraint and can improve throughput by reducing the bytes moved per operation, at some risk to output quality. Time to first token is dominated by model load plus prompt prefill, while steady-state tokens per second reflects decode speed; these are different metrics and a system can be strong at one and weak at the other.\n\nBased only on the notes above, answer in three sentences: why can a model that fits in a GPU's VRAM still run slowly as the conversation gets longer?",
+    "note": "Long prefill (~400 tokens of context) \u2014 stresses prompt-processing / prefill throughput and exercises KV-cache growth."
+  },
+  "email_decline": {
+    "text": "Write a professional email declining an invitation to Thursday's vendor demo because of a schedule conflict, and propose Friday afternoon instead. Include a subject line. Keep the body to four sentences or fewer.",
+    "note": "Everyday writing task with checkable constraints: a subject line, a decline, a Friday-afternoon counter-proposal, four sentences max. Short prefill, short decode."
+  },
+  "meeting_summary": {
+    "text": "Summarize these meeting notes into exactly three bullet points, each naming an owner and a deadline.\n\nNotes from the Atlas launch standup, Tuesday: Priya walked through the beta feedback. Largest complaint is export failing on files over 2 GB; she suspects the chunked-upload retry logic and will land a fix by next Wednesday. Marcus reported that the pricing page A/B test finished with variant B ahead by 11 percent on conversions; he owns rolling variant B out to all regions before the end of the month, pending legal sign-off on the revised refund wording. Dana raised that two enterprise prospects asked for SSO before they will sign; she will deliver a scoping doc for SAML support by Friday so engineering can size it. The team agreed the launch date stays October 6 unless the export bug slips past next week. Priya also noted the docs site search index is stale; nobody owns that yet, and it was parked for the next standup.",
+    "note": "Compression under a format constraint: realistic prefill (~250 tokens) into exactly three bullets with owner + deadline. Correct answers name Priya/Wednesday, Marcus/end of month, Dana/Friday and skip the parked item."
+  },
+  "json_extract": {
+    "text": "Extract the following support ticket into JSON with exactly these keys: customer, product, issue, severity (one of low, medium, high). Respond with only the JSON object, no other text.\n\nTicket: Hi, this is Elena Vasquez writing again about our CloudSync Pro subscription. Since the update on Monday the desktop client crashes on launch for my whole team, and we cannot reach our shared folders at all. We have a client deliverable on Friday, so this is urgent for us. Ticket ref 88213.",
+    "note": "Structured extraction, the backbone of agent and ETL work. At temperature 0 the output should be exactly parseable JSON with customer Elena Vasquez, product CloudSync Pro, a crash-on-launch issue, severity high. Verify with json.loads."
+  },
+  "code_bugfix": {
+    "text": "This Python function is supposed to return every adjacent pair in a list, but callers report the last pair is missing. Fix the bug and reply with only the corrected function.\n\ndef adjacent_pairs(items):\n    pairs = []\n    for i in range(len(items) - 2):\n        pairs.append((items[i], items[i + 1]))\n    return pairs",
+    "note": "Small real code fix (off-by-one: the range must be len(items) - 1). Checkable: the corrected range appears and the reply is just the function. Exercises code reasoning at modest decode length."
+  },
+  "long_form": {
+    "text": "Write a clear explainer of roughly 350 words for a general audience: why can a smaller AI model on your own computer answer faster than a bigger one, and when is the bigger one worth the wait? Use plain language, no bullet lists.",
+    "note": "Decode endurance: sustained ~450-550 token generation, the profile of drafting and content work. Watch sustained tok/s rather than burst, and whether the word-count instruction is roughly honoured."
+  },
+  "chart_read": {
+    "text": "How many bars does this chart show, and does the tallest bar rise above the red line? Answer in one sentence.",
+    "images": [
+      "docs/bar-chart.png"
+    ],
+    "note": "Vision floor: three bars, and yes. Also measures what an attached image adds to prefill/TTFT versus text-only prompts."
+  },
+  "ui_read": {
+    "text": "This is a screenshot of a benchmarking app. Which model name was benchmarked, and what generation speed in tokens per second does the app report? Answer in one sentence.",
+    "images": [
+      "../docs/screenshots/01-run-detail.png"
+    ],
+    "note": "Realistic vision: reading a dense UI. Correct answer names qwen3:4b-q4_K_M and 119 tok/s. Larger image than chart_read, so expect a bigger prefill cost."
   }
 }

@@ -13,6 +13,9 @@ them.
 - `27b-class_m3-max*.json` — addendum (2026-08-20, M3 Max only): Qwen3.6-27B
   dense vs Gemma 4 26B MoE, thinking disabled, same prompts as the main
   campaign
+- `workloads_*.json`, `vision-tasks_*.json`, `thinking-cost-*.json` — the
+  everyday-workloads suite (2026-08-20, M3 Max only); outcomes recorded in
+  TESTPLAN.md
 
 Two caveats recorded with the data rather than hidden:
 

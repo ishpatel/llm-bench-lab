@@ -635,6 +635,9 @@ think.
 | `quant-reverse.json` | The same sweep in reverse model order, as a thermal and ordering control |
 | `context-scaling.json` | One model across 4K to 32K context capacity |
 | `27b-class.json` | The 2026 mid-large class: Qwen3.6-27B and Gemma 4 26B (MoE), thinking disabled for a fair speed comparison |
+| `workloads.json` | Six models, five everyday tasks (email, summary, JSON extraction, code fix, long-form), each with a checkable definition of correct |
+| `vision-tasks.json` | The vision models read a chart and a dense screenshot; measures the prefill cost of images too |
+| `thinking-cost-on/off.json` | The same reasoning prompt with the thinking stream on vs off: what thinking costs in time-to-first-visible-word |
 | `task-with-doc.json` | A grounded-versus-ungrounded task using a Markdown reference |
 | `task-with-pdf.json` | The same, exercising the PDF extractor |
 | `mac.json` | Apple-Silicon-only matrix |

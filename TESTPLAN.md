@@ -400,6 +400,76 @@ git add sample-results && git commit -m "Add RTX 5070 and M3 Max benchmark resul
 
 ---
 
+## The everyday-workloads suite (added 2026-08-20)
+
+The original campaign asked hardware questions with synthetic prompts. This
+suite asks the question people actually have — *which of my models is enough
+for real work* — with tasks that look like a normal Tuesday, each carrying a
+checkable definition of "correct" in its prompt note.
+
+**`workloads.json`** — six models from 4B to 27B on five tasks: decline an
+email politely (format constraints), compress meeting notes to three owned
+bullets, extract a support ticket to strict JSON, fix an off-by-one in Python,
+and write a 350-word explainer (decode endurance). Thinking is off and
+temperature 0, so outputs are comparable and the JSON case is deterministic.
+Hypothesis: the everyday tasks stop improving noticeably well below the
+largest model, and the suite shows where.
+
+Quick quality gate, no eyeballing needed:
+
+```bash
+python - <<'CHECK'
+import json, glob
+d = json.load(open(sorted(glob.glob("results/workloads_*.json"))[-1]))
+for c in d["cells"]:
+    out = c["runs"][0]["response_text"]
+    k = c["prompt_key"]; ok = "?"
+    if k == "json_extract":
+        try:
+            j = json.loads(out.strip().strip("`json").strip("`"))
+            ok = "PASS" if j.get("severity") in ("high", "medium", "low") else "odd"
+        except Exception: ok = "FAIL (not JSON)"
+    elif k == "code_bugfix":
+        ok = "PASS" if "len(items) - 1" in out or "len(items)-1" in out else "FAIL"
+    elif k == "meeting_summary":
+        ok = "PASS" if all(n in out for n in ("Priya", "Marcus", "Dana")) else "FAIL"
+    elif k == "email_decline":
+        ok = "PASS" if "riday" in out and "ubject" in out else "check"
+    if ok != "?": print(f"{c['model']:24} {k:16} {ok}")
+CHECK
+```
+
+**`vision-tasks.json`** — the three vision models read a simple chart (three
+bars, one threshold line) and a dense app screenshot. Two things are measured:
+whether the answer is right (chart: three bars, yes; screenshot:
+qwen3:4b-q4_K_M at 119 tok/s), and what an attached image does to prefill and
+first-word latency versus the text-only cells of the same model.
+
+**`thinking-cost-on.json` / `thinking-cost-off.json`** — the same reasoning
+prompt through the three thinking models with the reasoning stream on and off,
+1,024-token budget. The pair quantifies what thinking actually costs on the
+metric users feel (time to the first visible word) so "should I leave thinking
+on" gets a measured answer instead of a vibe. Run them back to back; nothing
+else on the GPU.
+
+**Measured outcomes (M3 Max, 2026-08-20, frozen in `sample-results/`):**
+all 30 workloads cells pass the mechanical checks — including the 4B nano, so
+the quality floor for everyday tasks sits far below the largest model and the
+real trade is the 5.6x speed spread (103 vs 18.5 tok/s). All six vision
+answers were correct; the same screenshot cost ~340 image tokens through both
+Gemmas but 4,097 through Qwen3.6, whose vision encoder is far more
+token-dense — multimodal prefill cost is a model property, not an image
+property. Thinking cost on the same reasoning prompt: +5.5 s to the first
+visible word on qwen3:8b (1,648 hidden chars), +7.4 s on gemma4:26b, and
+qwen3.6:27b spent the entire 1,024-token budget reasoning without emitting a
+visible word at all — at 18 tok/s that is nearly a minute of silence, which is
+the measured answer to "should I leave thinking on for interactive use".
+
+Every installed model is exercised by some suite: the 4B quant trio by
+`quant-sweep`, nano through 27B by `workloads`, the vision-capable three by
+`vision-tasks`, the thinking three by the `thinking-cost` pair, and
+`embeddinggemma` by the RAG/life-lab evals, which embed through it.
+
 ## What to record as you go
 
 For each phase, in your own notes, not just in the tool:

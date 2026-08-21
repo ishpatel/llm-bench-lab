@@ -1,0 +1,10 @@
+{
+  "name": "vision-tasks",
+  "runs": 2,
+  "warmup": 1,
+  "measure_cold_start": false,
+  "options": { "temperature": 0, "num_predict": 200, "think": false },
+  "models": ["gemma3:12b-it-q4_K_M", "gemma4:26b", "qwen3.6:27b"],
+  "context_lengths": [null],
+  "prompts": ["chart_read", "ui_read"]
+}
