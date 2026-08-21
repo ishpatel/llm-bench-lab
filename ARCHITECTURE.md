@@ -1,7 +1,7 @@
 # Architecture
 
-How llm-bench-lab is put together, and why each decision was made. About 7,500
-lines: 5,500 of Python across 19 modules plus a 1,900-line single-page UI, on the
+How llm-bench-lab is put together, and why each decision was made. About 8,300
+lines: 6,000 of Python across 19 modules plus a 2,200-line single-page UI, on the
 standard library alone.
 
 This document assumes you have read the [README](README.md) and want to know how

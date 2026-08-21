@@ -426,6 +426,17 @@ class Handler(BaseHTTPRequestHandler):
                 runs = app.store.list()
                 for r in runs:  # keep the list light
                     r.pop("output", None)
+                    # Adopted vision runs carry base64 image payloads in their
+                    # attachments; six of them once put 3.9 MB into every list
+                    # response. The list keeps names only; detail keeps all.
+                    att = r.get("attachments")
+                    if isinstance(att, dict) and att:
+                        r["attachments"] = {
+                            "files": [a.get("name", a) if isinstance(a, dict)
+                                      else a for a in att.get("files", [])],
+                            "images": [a.get("name", a) if isinstance(a, dict)
+                                       else a for a in att.get("images", [])],
+                        }
                 return self._json({"runs": runs})
             if path == "/api/cross-report":
                 qs = parse_qs(urlparse(self.path).query)

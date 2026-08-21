@@ -94,7 +94,11 @@ class OllamaClient:
         except Exception:
             return []
 
+    _caps_cache: Dict[str, List[str]] = {}
+
     def capabilities(self, model: str) -> List[str]:
+        if model in self._caps_cache:
+            return self._caps_cache[model]
         """Model capabilities via /api/show (e.g. ['completion','vision'] or
         ['embedding']). Cached per model. Empty list if unavailable — callers
         treat unknown as generative so nothing is wrongly blocked."""
@@ -107,6 +111,7 @@ class OllamaClient:
         except Exception:
             caps = []
         self._cap_cache[model] = caps
+        self._caps_cache[model] = caps
         return caps
 
     def models_detailed(self) -> List[Dict[str, Any]]:

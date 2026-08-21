@@ -140,6 +140,7 @@ def main() -> int:
         return 2
     url, out = sys.argv[1], sys.argv[2]
     setup_js = sys.argv[3] if len(sys.argv) > 3 else ""
+    max_h = int(sys.argv[4]) if len(sys.argv) > 4 else 4000
     proc = start_chrome()
     try:
         ws = WS(page_ws_url())
@@ -156,7 +157,7 @@ def main() -> int:
                 raise SystemExit(f"setup JS failed: {r['exceptionDetails']}")
             time.sleep(0.8)
         h = int(ws.call("Runtime.evaluate", returnByValue=True, expression=
-                        "Math.min(Math.ceil(document.body.scrollHeight),4000)"
+                        f"Math.min(Math.ceil(document.body.scrollHeight),{max_h})"
                         )["result"]["value"])
         ws.call("Emulation.setDeviceMetricsOverride", width=1400, height=h,
                 deviceScaleFactor=2, mobile=False)

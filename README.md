@@ -75,8 +75,10 @@ dense, terse surface — same app, different register.
 ![New Run tab in beginner mode, with a numbered path and sample prompts](docs/screenshots/10-new-run.png)
 
 **A benchmark run, explained.** Each metric has a verdict, tagged with the
-machine that produced it, alongside the model's answer and four dimensions for
-you to score it on. Speed means nothing if the output is wrong.
+machine that produced it — including power draw and thermal pressure sampled
+during the run, with an honest badge when the measurement happened on battery.
+The model's answer sits alongside four dimensions for you to score it on,
+because speed means nothing if the output is wrong.
 
 ![Run detail with metric verdicts, a machine chip and a four-dimension rating](docs/screenshots/01-run-detail.png)
 

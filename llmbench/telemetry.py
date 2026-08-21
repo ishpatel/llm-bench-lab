@@ -647,7 +647,9 @@ class GpuSampler:
     """Background GPU poller (nvidia-smi, or rocm-smi where ROCm is
     installed). No-op elsewhere so the same code path runs everywhere."""
 
-    SYSTEM_EVERY = 4   # system signals move slowly; sample them every 4th tick
+    SYSTEM_EVERY = 8   # thermal pressure and the battery gauge move on
+                       # multi-second cadences; sampling them every ~2 s halves
+                       # the subprocess spawns without losing information
 
     def __init__(self, interval: float = 0.25):
         self.interval = interval
