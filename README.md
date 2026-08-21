@@ -670,6 +670,7 @@ llmbench/
   jobs.py               single-worker job queue
   server.py             stdlib web server and JSON API
   web/index.html        the single-page UI
+tools/screenshot.py     regenerate gallery screenshots (stdlib CDP driver)
 configs/                benchmark configs, prompt set, sample reference documents
 corpus/                 synthetic document corpus for the worked example
 evals/                  evaluation suites
