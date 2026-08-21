@@ -602,7 +602,7 @@ recognise, scoring a correct abstention as a failure.
 | `wall_total_ms` | Full request round-trip |
 | `prompt_tokens` / `output_tokens` | Token counts in and out |
 | `residency` | Where the model actually ran, e.g. `100% GPU` or `36%/64% CPU/GPU` |
-| GPU sample (NVIDIA) | Peak and average utilisation, peak VRAM, power, temperature |
+| System sample | Taken during every timed run, from the best source the machine offers. NVIDIA/AMD: peak+average GPU utilisation, VRAM, power, temperature, SM clocks and whether the driver reported throttling. Apple: macOS thermal pressure and, when unplugged, real battery draw (sudoless; `powermetrics` package power when run as root). Runs on battery or under thermal pressure are flagged in the results, because both depress the numbers |
 
 ### Config format
 
@@ -684,7 +684,7 @@ results/  runs/  kb/    generated output (gitignored)
 
 | Hardware | Benchmarks | Named in System details | Live GPU sampling during a run |
 |---|---|---|---|
-| Apple Silicon (any M-series) | yes | yes | no per-process counter exists without elevated access; residency comes from the engine |
+| Apple Silicon (any M-series) | yes | yes | thermal pressure + battery draw sudoless; package power via `powermetrics` when run as root; no per-process VRAM counter exists |
 | NVIDIA | yes | yes | yes, via `nvidia-smi` (utilisation, VRAM, power, temperature) |
 | AMD | yes | yes | yes where ROCm's `rocm-smi` is installed (Linux); named-only elsewhere |
 | Intel (Arc / integrated) and Intel Macs | yes | yes | named-only: no sampling CLI is reliably present, and reporting noise would be worse |

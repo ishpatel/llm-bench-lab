@@ -166,8 +166,16 @@ A background sampler polls every 250 ms during a generation, capturing peak and
 average utilization, VRAM, power and temperature — through `nvidia-smi` on
 NVIDIA and `rocm-smi --json` where ROCm is installed on AMD, with the JSON
 parsed by key pattern because ROCm renames fields between releases. On Apple
-Silicon and Intel GPUs sampling is a deliberate no-op: no reliable counter
-exists without elevated access, and inventing one would be dishonest. Windows
+Silicon the sampler reads what is honestly available without privileges: macOS
+thermal pressure via NSProcessInfo (driven through osascript, so still
+stdlib-only) and battery discharge watts via ioreg when unplugged — measured
+during a 27B run at over 100 W, but on a fuel gauge that refreshes every
+~20-25 s, so short runs may under-report and the label says so. Root
+additionally unlocks powermetrics package power. Runs taken on battery or
+under thermal pressure are flagged in the summary and the UI, because both
+depress the numbers; on Intel GPUs sampling remains a deliberate no-op, since
+no reliable counter exists without elevated access and inventing one would be
+dishonest. Windows
 reports GPU memory through a 32-bit field that pins just under 4 GB on any
 larger card, so near-cap values are dropped rather than displayed: on a tool
 whose thesis is that VRAM capacity decides the experience, a wrong capacity is

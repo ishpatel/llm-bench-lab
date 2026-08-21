@@ -438,23 +438,49 @@ class SampleStats:
     power_peak_w: Optional[float] = None
     power_avg_w: Optional[float] = None
     temp_peak_c: Optional[float] = None
+    # GPU extras (NVIDIA): clock behaviour is the thermals story in numbers.
+    sm_clock_avg_mhz: Optional[float] = None
+    sm_clock_min_mhz: Optional[float] = None
+    gpu_throttled: Optional[bool] = None
+    # Whole-system signals (Apple, sudoless): thermal pressure and, when the
+    # machine is unplugged, the real watts being drawn from the battery.
+    thermal_pressure_peak: Optional[str] = None
+    on_battery: Optional[bool] = None
+    battery_power_avg_w: Optional[float] = None
+    battery_power_peak_w: Optional[float] = None
 
 
-def _read_nvidia() -> Optional[Dict[str, float]]:
+def _read_nvidia() -> Optional[Dict[str, Any]]:
     raw = _run([
         "nvidia-smi",
-        "--query-gpu=utilization.gpu,memory.used,power.draw,temperature.gpu",
+        "--query-gpu=utilization.gpu,memory.used,power.draw,temperature.gpu,"
+        "clocks.sm,clocks_throttle_reasons.active",
         "--format=csv,noheader,nounits",
     ], timeout=5)
     if not raw:
         return None
     parts = [p.strip() for p in raw.splitlines()[0].split(",")]
     try:
-        return {"utilization_pct": float(parts[0]),
-                "vram_used_mb": float(parts[1]),
-                "power_w": float(parts[2]), "temp_c": float(parts[3])}
+        out: Dict[str, Any] = {"utilization_pct": float(parts[0]),
+                               "vram_used_mb": float(parts[1]),
+                               "power_w": float(parts[2]),
+                               "temp_c": float(parts[3])}
     except (ValueError, IndexError):
         return None
+    # Clock + throttle mask are the thermal story in numbers: a hot GPU keeps
+    # its temperature flat and gives up clocks instead. Both fields can be
+    # "[N/A]" on some boards, so they are optional.
+    if len(parts) >= 5:
+        try:
+            out["sm_clock_mhz"] = float(parts[4])
+        except ValueError:
+            pass
+    if len(parts) >= 6 and parts[5].startswith("0x"):
+        try:
+            out["throttled"] = int(parts[5], 16) != 0
+        except ValueError:
+            pass
+    return out
 
 
 def _parse_rocm_json(raw: Optional[str]) -> Optional[Dict[str, float]]:
@@ -505,6 +531,83 @@ def _read_rocm() -> Optional[Dict[str, float]]:
          "--showmeminfo", "vram", "--json"], timeout=5))
 
 
+_THERMAL_STATES = {0: "nominal", 1: "fair", 2: "serious", 3: "critical"}
+
+
+def _read_apple_system() -> Optional[Dict[str, Any]]:
+    """Sudoless macOS signals: thermal pressure via NSProcessInfo (through
+    osascript, so no third-party bindings) and battery draw via ioreg. Battery
+    watts are only meaningful unplugged; plugged in, only thermal state is
+    reported. ~50 ms per sample, so the sampler calls this on a slow tick.
+    The fuel gauge refreshes on its own ~20-25 s cadence (measured: it held a
+    stale idle value through a short generation, then stepped to the real
+    load), so short runs may under-report and sustained runs are truthful."""
+    out: Dict[str, Any] = {}
+    ts = _run(["osascript", "-l", "JavaScript", "-e",
+               'ObjC.import("Foundation"); '
+               "$.NSProcessInfo.processInfo.thermalState"], timeout=5)
+    if ts is not None and ts.strip().isdigit():
+        out["thermal_state"] = int(ts.strip())
+    raw = _run(["ioreg", "-rn", "AppleSmartBattery"], timeout=5) or ""
+    parsed = _parse_battery_ioreg(raw)
+    if parsed:
+        out.update(parsed)
+    return out or None
+
+
+def _parse_battery_ioreg(raw: str) -> Optional[Dict[str, Any]]:
+    m_ext = re.search(r'"ExternalConnected"\s*=\s*(Yes|No)', raw)
+    m_amp = re.search(r'"Amperage"\s*=\s*(\d+)', raw)
+    m_volt = re.search(r'"Voltage"\s*=\s*(\d+)', raw)
+    if not (m_ext and m_amp and m_volt):
+        return None
+    on_battery = m_ext.group(1) == "No"
+    amp = int(m_amp.group(1))
+    if amp >= 2 ** 63:                     # unsigned wrap: discharge is negative
+        amp -= 2 ** 64
+    watts = abs(amp) * int(m_volt.group(1)) / 1_000_000.0
+    out: Dict[str, Any] = {"on_battery": on_battery}
+    if on_battery and amp < 0:
+        out["battery_w"] = round(watts, 1)
+    return out
+
+
+def _read_powermetrics() -> Optional[Dict[str, float]]:
+    """Package power on Apple Silicon, root only. `powermetrics` is Apple's own
+    counter but refuses to run unprivileged, so this reader exists only when
+    the process is root; the docs say plainly that sudo unlocks it."""
+    raw = _run(["powermetrics", "-n", "1", "-i", "300",
+                "--samplers", "cpu_power"], timeout=10)
+    return _parse_powermetrics(raw)
+
+
+def _parse_powermetrics(raw: Optional[str]) -> Optional[Dict[str, float]]:
+    if not raw:
+        return None
+    m = re.search(r"Combined Power \(CPU \+ GPU \+ ANE\):\s*([\d.]+)\s*mW", raw)
+    if not m:
+        return None
+    return {"package_power_w": round(float(m.group(1)) / 1000.0, 2)}
+
+
+def _pick_system_reader():
+    """Whole-system sampler for this platform. Apple always has the sudoless
+    reader; root additionally unlocks powermetrics package power."""
+    if platform.system() != "Darwin":
+        return None
+    is_root = hasattr(os, "geteuid") and os.geteuid() == 0
+
+    def read() -> Optional[Dict[str, Any]]:
+        out = _read_apple_system() or {}
+        if is_root:
+            pm = _read_powermetrics()
+            if pm:
+                out.update(pm)
+        return out or None
+
+    return read
+
+
 def _pick_gpu_reader():
     """The sampling tool for this machine: nvidia-smi, rocm-smi, or nothing.
     Intel GPUs are named but not sampled; no CLI is reliably present across
@@ -523,38 +626,76 @@ def sample_gpu_once() -> Dict[str, Any]:
     for zero or one sample."""
     reader = _pick_gpu_reader()
     sample = reader() if reader else None
-    if not sample:
+    sys_reader = _pick_system_reader()
+    sysm = sys_reader() if sys_reader else None
+    merged: Dict[str, Any] = {}
+    if sample:
+        merged.update(sample)
+    if sysm:
+        if "thermal_state" in sysm:
+            merged["thermal_pressure"] = _THERMAL_STATES.get(
+                sysm["thermal_state"], str(sysm["thermal_state"]))
+        for k in ("on_battery", "battery_w", "package_power_w"):
+            if k in sysm:
+                merged[k] = sysm[k]
+    if not merged:
         return {"available": False}
-    return {"available": True, **sample}
+    return {"available": True, **merged}
 
 
 class GpuSampler:
     """Background GPU poller (nvidia-smi, or rocm-smi where ROCm is
     installed). No-op elsewhere so the same code path runs everywhere."""
 
+    SYSTEM_EVERY = 4   # system signals move slowly; sample them every 4th tick
+
     def __init__(self, interval: float = 0.25):
         self.interval = interval
         self._reader = _pick_gpu_reader()
-        self.enabled = self._reader is not None
+        self._sys_reader = _pick_system_reader()
+        self.enabled = self._reader is not None or self._sys_reader is not None
         self._stop = threading.Event()
         self._thread: Optional[threading.Thread] = None
         self._util: List[float] = []
         self._vram: List[float] = []
         self._power: List[float] = []
         self._temp: List[float] = []
+        self._clock: List[float] = []
+        self._throttled = False
+        self._throttle_seen = False
+        self._thermal: List[int] = []
+        self._battery_w: List[float] = []
+        self._on_battery: Optional[bool] = None
+        self._tick = 0
 
     def _poll_once(self) -> None:
         sample = self._reader() if self._reader else None
-        if not sample:
-            return
-        if "utilization_pct" in sample:
-            self._util.append(sample["utilization_pct"])
-        if "vram_used_mb" in sample:
-            self._vram.append(sample["vram_used_mb"])
-        if "power_w" in sample:
-            self._power.append(sample["power_w"])
-        if "temp_c" in sample:
-            self._temp.append(sample["temp_c"])
+        if sample:
+            if "utilization_pct" in sample:
+                self._util.append(sample["utilization_pct"])
+            if "vram_used_mb" in sample:
+                self._vram.append(sample["vram_used_mb"])
+            if "power_w" in sample:
+                self._power.append(sample["power_w"])
+            if "temp_c" in sample:
+                self._temp.append(sample["temp_c"])
+            if "sm_clock_mhz" in sample:
+                self._clock.append(sample["sm_clock_mhz"])
+            if "throttled" in sample:
+                self._throttle_seen = True
+                self._throttled = self._throttled or sample["throttled"]
+        if self._sys_reader and self._tick % self.SYSTEM_EVERY == 0:
+            sysm = self._sys_reader()
+            if sysm:
+                if "thermal_state" in sysm:
+                    self._thermal.append(sysm["thermal_state"])
+                if "on_battery" in sysm:
+                    self._on_battery = sysm["on_battery"]
+                if "battery_w" in sysm:
+                    self._battery_w.append(sysm["battery_w"])
+                if "package_power_w" in sysm:
+                    self._power.append(sysm["package_power_w"])
+        self._tick += 1
 
     def _loop(self) -> None:
         while not self._stop.is_set():
@@ -581,13 +722,23 @@ class GpuSampler:
         def avg(xs: List[float]) -> Optional[float]:
             return (sum(xs) / len(xs)) if xs else None
 
+        n = max(len(self._util), len(self._thermal), len(self._battery_w),
+                len(self._power))
         return SampleStats(
-            available=True,
-            samples=len(self._util),
+            available=n > 0,
+            samples=n,
             util_peak=peak(self._util),
             util_avg=avg(self._util),
             vram_used_peak_mb=peak(self._vram),
             power_peak_w=peak(self._power),
             power_avg_w=avg(self._power),
             temp_peak_c=peak(self._temp),
+            sm_clock_avg_mhz=avg(self._clock),
+            sm_clock_min_mhz=(min(self._clock) if self._clock else None),
+            gpu_throttled=(self._throttled if self._throttle_seen else None),
+            thermal_pressure_peak=(_THERMAL_STATES.get(max(self._thermal))
+                                   if self._thermal else None),
+            on_battery=self._on_battery,
+            battery_power_avg_w=avg(self._battery_w),
+            battery_power_peak_w=peak(self._battery_w),
         )

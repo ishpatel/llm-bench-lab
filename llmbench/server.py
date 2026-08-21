@@ -71,6 +71,24 @@ def summarize(cell: Dict[str, Any], meta: Dict[str, Any]) -> Dict[str, Any]:
     metrics["residency"] = cell.get("residency", "")
     cold = cell.get("cold_start") or {}
     metrics["cold_load_ms"] = cold.get("load_ms")
+    # Lift the system sampler into the tile set. Power picks the best source
+    # present and says which it was: a discrete GPU's own draw, root
+    # powermetrics package power, or the battery gauge when unplugged.
+    g = first.get("gpu") or {}
+    if g.get("available"):
+        metrics["gpu_util_peak"] = g.get("util_peak")
+        metrics["temp_peak_c"] = g.get("temp_peak_c")
+        metrics["thermal_pressure"] = g.get("thermal_pressure_peak")
+        metrics["gpu_throttled"] = g.get("gpu_throttled")
+        metrics["on_battery"] = g.get("on_battery")
+        if g.get("power_avg_w") is not None:
+            metrics["power_w"] = g.get("power_avg_w")
+            metrics["power_source"] = "GPU" if g.get("util_peak") is not None \
+                else "package (powermetrics)"
+        elif g.get("battery_power_avg_w") is not None:
+            metrics["power_w"] = g.get("battery_power_avg_w")
+            metrics["power_source"] = "battery gauge (slow; short runs may " \
+                "under-report)"
     return {
         "metrics": metrics,
         "output": first.get("response_text", ""),

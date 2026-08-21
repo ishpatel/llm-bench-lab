@@ -814,13 +814,33 @@ const MET = {
     explain:'Where the model ended up. 100% GPU = it fit in GPU memory (fast). A CPU split = spilled into system RAM (slow).',
     verdict:v=> !v?null: /100%\s*GPU/i.test(v)?['Fully on the GPU, the fastest path','good']
       : /CPU/i.test(v)?['Spilled to CPU; this is the VRAM wall','bad']:[String(v),'neutral']},
+  power_w:{label:'Power draw',unit:'W',
+    explain:'Average power while the model was answering, from the best source this machine offers: the GPU\u2019s own counter, powermetrics (with sudo), or the battery gauge when unplugged.',
+    verdict:null},
+  gpu_util_peak:{label:'GPU busy (peak)',unit:'%',
+    explain:'Peak GPU utilisation during the run, from the vendor tool (nvidia-smi / rocm-smi).',
+    verdict:null},
+  temp_peak_c:{label:'GPU temp (peak)',unit:'\u00b0C',
+    explain:'Peak GPU temperature during the run. Flat temperature with falling clocks is what throttling looks like.',
+    verdict:v=> v==null?null: v<80?['Comfortable','good']: v<90?['Warm','ok']:['Hot; expect throttling','bad']},
+  thermal_pressure:{label:'Thermal pressure',unit:'',
+    explain:'macOS\u2019s own system-wide thermal state during the run. Anything above nominal means the machine was slowing itself to shed heat, and speed numbers are depressed.',
+    verdict:v=> !v?null: v==='nominal'?['Cool; numbers are trustworthy','good']
+      : v==='fair'?['Mild pressure; minor effect','ok']:['Throttling; numbers are depressed','bad']},
 };
-const MET_ORDER=['gen_tps','ttfv_ms','ttft_ms','prompt_tps','prompt_tokens','output_tokens','cold_load_ms','residency'];
+const MET_ORDER=['gen_tps','ttfv_ms','ttft_ms','prompt_tps','prompt_tokens','output_tokens','cold_load_ms','residency',
+                 'power_w','gpu_util_peak','temp_peak_c','thermal_pressure'];
+// The system tiles only exist where a sampler ran; unlike the core eight they
+// hide when absent instead of rendering an em-dash for everyone.
+const MET_OPTIONAL=new Set(['power_w','gpu_util_peak','temp_peak_c','thermal_pressure']);
 
 function tile(key, raw, all){
   const mi=MET[key]||{label:key,unit:''};
   const isNum=typeof raw==='number';
-  const disp=key==='residency'?(raw||'—'):(key.includes('tokens')?fmtInt(raw):fmt(raw));
+  // Text-valued tiles (residency, thermal pressure) display their string;
+  // number formatting a word produced a literal "NaN" tile.
+  const disp=(!isNum&&raw!=null&&raw!=='')?String(raw)
+    :(key.includes('tokens')?fmtInt(raw):fmt(raw));
   const unit=mi.unit&&raw!=null&&key!=='residency'?`<span class="u">${mi.unit}</span>`:'';
   const sub=mi.sub?mi.sub(raw):null;
   const vd=mi.verdict?mi.verdict(raw,all):null;
@@ -831,7 +851,14 @@ function tile(key, raw, all){
     ${vd?`<div class="verdict ${vd[1]}">${esc(vd[0])}</div>`:''}
   </div>`;
 }
-function metricsHtml(x){x=x||{};return '<div class="metrics">'+MET_ORDER.map(k=>tile(k,x[k],x)).join('')+'</div>';}
+function metricsHtml(x){x=x||{};
+  return '<div class="metrics">'+MET_ORDER
+    .filter(k=>!(MET_OPTIONAL.has(k)&&(x[k]==null||x[k]==='')))
+    .map(k=>tile(k,x[k],x)).join('')
+    +(x.on_battery?'<div class="hint" style="flex-basis:100%">\u26a1 Measured on battery power'
+      +(x.power_source?' \u00b7 power via '+esc(x.power_source):'')
+      +'. Plug in for numbers comparable to mains-powered runs.</div>':'')
+    +'</div>';}
 function speedClass(v){if(v==null)return '';return v>=30?'good':v>=10?'ok':'bad';}
 
 /* ---------------- tabs ---------------- */

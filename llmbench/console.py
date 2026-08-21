@@ -320,6 +320,29 @@ def _notes(cells: List[Dict[str, Any]], labels: List[str]) -> List[Tuple[str, st
                           'Add "think": false to options, or raise num_predict.',
                           "ok"))
 
+    # System conditions that qualify every number in the table.
+    firsts = [(lab, (c.get("runs") or [{}])[0].get("gpu") or {})
+              for lab, c, _ in ranked]
+    if any(g.get("on_battery") for _, g in firsts):
+        w = max((g.get("battery_power_peak_w") or 0) for _, g in firsts)
+        notes.append(("Measured on battery power"
+                      + (f" (up to {w:.0f} W draw)" if w else "")
+                      + "; laptops limit power unplugged, so plug in for "
+                      "numbers comparable to mains-powered runs.", "ok"))
+    worst = None
+    for _, g in firsts:
+        t = g.get("thermal_pressure_peak")
+        if t and t != "nominal":
+            worst = t if worst is None else worst
+    if worst:
+        notes.append((f"Thermal pressure reached '{worst}' during measurement: "
+                      "the machine was shedding heat, and speed numbers are "
+                      "depressed. Let it cool and re-run.", "bad"))
+    if any(g.get("gpu_throttled") for _, g in firsts):
+        notes.append(("The GPU reported active throttling during the run; "
+                      "clocks were reduced and the numbers are depressed.",
+                      "bad"))
+
     approx = sorted({c.get("model") or lab for lab, c, _ in ranked
                      if any(r.get("approximate_tokens") for r in (c.get("runs") or []))})
     if approx:
