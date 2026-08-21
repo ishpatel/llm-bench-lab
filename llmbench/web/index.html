@@ -120,6 +120,14 @@
   /* Two toggles plus the chip bar need the room, so the tagline is the first
      thing to go on a narrow window rather than letting the brand wrap. */
   @media (max-width:1040px){ .brand .tagline{display:none} }
+  /* On mid widths the chip bar used to wrap between the brand and the buttons,
+     stacking the header three rows deep. Below 1180px it drops to its own
+     full-width second row instead: brand and mode buttons stay on line one. */
+  @media (max-width:1180px){
+    header{flex-wrap:wrap;row-gap:8px}
+    .drawertoggles{margin-left:auto}
+    .chipbar{order:3;flex-basis:100%;margin-left:0}
+  }
   .rhead{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
   .rhead button{white-space:nowrap;flex:none}
   .rbanner{display:flex;align-items:center;gap:9px;font-weight:650;font-size:13px;
@@ -196,6 +204,42 @@
   textarea{min-height:110px;resize:vertical;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
   .row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
   .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+  /* Fields that sit side by side must align by BAND, not by top: label with
+     label, help with help, control with control, trailing hint with trailing
+     hint. Help text varies in height (and changes with the mode), so the only
+     correct tool is subgrid: every cell shares the same four row tracks, and a
+     tall help in one column pushes the control row down in BOTH columns. */
+  .row>.field,.row3>.field{margin-bottom:0;min-width:0}
+  /* Column gap only: band spacing comes from label/help margins, and a row
+     gap would leak a phantom 16px into cells that span an empty trailing
+     track (measured: the Check-connection button sat exactly one gap low). */
+  .row,.row3{margin-bottom:15px;row-gap:0}
+  @supports (grid-template-rows: subgrid){
+    .row>.field{display:grid;grid-template-rows:subgrid;grid-row:span 4;
+      align-content:start}
+    .row3>.field{display:grid;grid-template-rows:subgrid;grid-row:span 3;
+      align-content:start}
+    .row{grid-template-rows:auto auto auto auto}
+    .row3{grid-template-rows:auto auto auto}
+    /* A cell that is only a button (Check connection) spans every band and
+       bottom-aligns, so it sits level with its neighbours' controls whatever
+       shape this particular row has. */
+    .row3>.field:has(> button:only-child){grid-row:span 3;display:flex;
+      flex-direction:column;justify-content:end}
+  }
+  @supports not (grid-template-rows: subgrid){
+    /* Fallback: bottom-pin the controls; trailers may offset them slightly. */
+    .row,.row3{align-items:stretch}
+    .row>.field,.row3>.field{display:flex;flex-direction:column}
+    .row>.field>select,.row>.field>input:not([type=checkbox]),
+    .row3>.field>select,.row3>.field>input:not([type=checkbox]),
+    .row3>.field>button:only-child{margin-top:auto}
+  }
+  .row .hint:empty{display:none}
+  /* Text inputs and selects share one height, so side-by-side controls sit on
+     identical boxes instead of differing by a few pixels of intrinsic size. */
+  input:not([type=checkbox]):not([type=radio]):not([type=file]),select{
+    height:38px;box-sizing:border-box}
   @media (max-width:760px){.row,.row3{grid-template-columns:1fr}}
   .field{margin-bottom:15px}
   button.btn{background:var(--accent);color:var(--accent-ink);border:none;border-radius:9px;
