@@ -83,6 +83,40 @@
   .lvlcheckline{display:flex;gap:8px;align-items:baseline}
   .lvlcheckline .ok{color:var(--good)} .lvlcheckline .bad{color:var(--bad)}
   .lvlactions{display:flex;justify-content:space-between;margin-top:18px}
+
+  /* ---------- polish pass: motion, depth, focus ---------- */
+  button,.btn,.ghost,.samplechip,.hwchip,.lvlopt,.tabbtn,nav button{
+    transition:border-color .15s ease,background .15s ease,color .15s ease,
+               box-shadow .15s ease,transform .12s ease}
+  .btn{box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 4px 14px rgba(118,185,0,.16)}
+  .btn:hover{transform:translateY(-1px);box-shadow:0 1px 0 rgba(255,255,255,.08) inset,
+    0 6px 20px rgba(118,185,0,.26)}
+  .btn:active{transform:translateY(0)}
+  .card,.rcard,.syscard2,.metric,.lvlopt{transition:border-color .15s ease,box-shadow .15s ease}
+  .metric:hover,.syscard2:hover,.rcard:hover{border-color:rgba(118,185,0,.35)}
+  nav button{position:relative}
+  nav button::after{content:"";position:absolute;left:12px;right:12px;bottom:-1px;height:2px;
+    background:var(--accent);transform:scaleX(0);transition:transform .18s ease;border-radius:2px}
+  nav button.active::after{transform:scaleX(1)}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+  table.runs tbody tr{transition:background .12s ease}
+  table.runs tbody tr:hover{background:rgba(118,185,0,.05)}
+  @media (prefers-reduced-motion: reduce){
+    *,*::before,*::after{transition:none !important;animation:none !important}}
+
+  /* ---------- mode-driven density ---------- */
+  /* Advanced asked for no hand-holding: the field explainers disappear and the
+     page leads compress, leaving a dense professional surface. The information
+     still exists for the other two modes. */
+  body.lvl-advanced .help{display:none}
+  body.lvl-advanced .lead{font-size:12px;margin-bottom:8px;opacity:.75}
+  body.lvl-advanced .pagehead p{font-size:12px;opacity:.75;margin-bottom:8px}
+  body.lvl-advanced details.adv summary .hint{display:none}
+  /* Beginner gets a visible 1-2-3 path through the run form. */
+  .stepnum{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;
+    border-radius:50%;background:var(--accent);color:#0b0f12;font-size:11px;font-weight:800;
+    margin-right:7px;vertical-align:-3px}
+  body:not(.lvl-beginner) .stepnum{display:none}
   /* Two toggles plus the chip bar need the room, so the tagline is the first
      thing to go on a narrow window rather than letting the brand wrap. */
   @media (max-width:1040px){ .brand .tagline{display:none} }
@@ -432,7 +466,7 @@
     <div class="card">
       <div class="row">
         <div class="field">
-          <label>Model</label>
+          <label id="modelLabel">Model</label>
           <div class="help">Only models installed on this machine (via Ollama) appear here. Tags show extra
             abilities: <b>vision</b> can look at images, <b>thinking</b> reasons privately before answering.</div>
           <select id="model"></select>
@@ -467,7 +501,7 @@
         </div>
       </div>
       <div class="field">
-        <label>Prompt</label>
+        <label id="promptLabel">Prompt</label>
         <div class="help">The task or question you want to benchmark. Identical prompts across models or
           machines make for fair comparisons.</div>
         <textarea id="prompt" placeholder="Ask anything, or give the model a task that uses the attached files…"></textarea>
@@ -834,8 +868,25 @@ const MET_ORDER=['gen_tps','ttfv_ms','ttft_ms','prompt_tps','prompt_tokens','out
 // hide when absent instead of rendering an em-dash for everyone.
 const MET_OPTIONAL=new Set(['power_w','gpu_util_peak','temp_peak_c','thermal_pressure']);
 
+// Beginner variants for the tile vocabulary: same numbers, plainer words.
+const MET_BEG={
+  gen_tps:{label:'Answering speed',explain:'How quickly the words appeared. Higher is faster.'},
+  ttfv_ms:{label:'Wait before first word',explain:'How long you waited before the answer started.'},
+  ttft_ms:{label:'Wait before it started',explain:'When the model began working, including any private reasoning.'},
+  prompt_tps:{label:'Reading speed',explain:'How fast it read your question and any attached files.'},
+  prompt_tokens:{label:'Question size',explain:'How much the model had to read, in tokens (word pieces).'},
+  output_tokens:{label:'Answer size',explain:'How much it wrote, in tokens (word pieces).'},
+  cold_load_ms:{label:'First-load wait',explain:'The one-time wait while the model loaded from disk, like an app launching.'},
+  residency:{label:'Where it ran',explain:'On the graphics chip = fast. Partly on the processor = it didn\u2019t fit, so it ran slow.'},
+  power_w:{label:'Power used',explain:'Roughly how much electricity the computer drew while answering.'},
+  thermal_pressure:{label:'Heat status',explain:'Whether your computer got hot enough to slow itself down during the test.'},
+  gpu_util_peak:{label:'Graphics chip busy',explain:'How hard the graphics chip worked at its busiest moment.'},
+  temp_peak_c:{label:'Chip temperature',explain:'The hottest the graphics chip got during the test.'},
+};
+
 function tile(key, raw, all){
-  const mi=MET[key]||{label:key,unit:''};
+  let mi=MET[key]||{label:key,unit:''};
+  if(getLevel()==='beginner'&&MET_BEG[key])mi={...mi,...MET_BEG[key]};
   const isNum=typeof raw==='number';
   // Text-valued tiles (residency, thermal pressure) display their string;
   // number formatting a word produced a literal "NaN" tile.
@@ -888,8 +939,64 @@ function saveLevel(level,prefs){try{localStorage.setItem(LVL_KEY,level);
 
 const POWER_TABS=['cross','copilot','agent','evals'];
 
+// Copy that changes register with the mode. Beginner reads like a helpful
+// person; advanced reads like release notes; intermediate keeps the standard
+// text. Originals are cached on first use so switching modes round-trips.
+const COPY={
+  '#tab-new h2':{
+    beg:'Test a model'},
+  '#tab-new .pagehead p':{
+    beg:'Pick a model, ask it something (or tap a sample), and press Run. '
+       +'You\u2019ll see how fast it answered and what it said \u2014 saved to '
+       +'your history so you can compare later.',
+    adv:'Queued single-worker runs; warm-up + repeats + cold start per the '
+       +'Advanced panel; results persist to runs/.'},
+  '#tab-runs h2':{
+    beg:'Your results'},
+  '#tab-runs .pagehead p':{
+    beg:'Every test you run is saved here. Tap any row to see the answer and '
+       +'the numbers, and give it stars so you remember which models were '
+       +'actually good.',
+    adv:'Full run history; filter, sort, rate, tick to compare.'},
+  '#tab-compare .pagehead p':{
+    beg:'Tick two or more runs on the results page, then come here to see '
+       +'them side by side. Green marks the better number.',
+    adv:'Selected runs side-by-side; best value per metric highlighted.'},
+  '#modelLabel + .help':{
+    beg:'These are the AIs installed on your computer. Bigger models are '
+       +'usually smarter but slower \u2014 the sizes are in the names.'},
+  '#promptLabel + .help':{
+    beg:'Ask anything you like. Using the same question for different models '
+       +'makes them easy to compare.'},
+  '#submit':{
+    beg:'Run it'},
+};
+
+function applyCopy(level){
+  Object.entries(COPY).forEach(([sel,variants])=>{
+    const el=document.querySelector(sel);if(!el)return;
+    if(el.dataset.copyOrig===undefined)el.dataset.copyOrig=el.innerHTML;
+    const v=level==='beginner'?variants.beg:level==='advanced'?variants.adv:null;
+    el.innerHTML=v!=null?v:el.dataset.copyOrig;
+  });
+}
+
+function applyStepBadges(level){
+  const spots=[['#modelLabel','1'],['#promptLabel','2'],['#submit','3']];
+  spots.forEach(([sel,n])=>{
+    const el=document.querySelector(sel);if(!el)return;
+    el.querySelector(':scope > .stepnum')?.remove();
+    if(level==='beginner')
+      el.insertAdjacentHTML('afterbegin',`<span class="stepnum">${n}</span>`);
+  });
+}
+
 function applyLevel(){
   const level=getLevel()||'advanced', prefs=getPrefs();
+  document.body.classList.remove('lvl-beginner','lvl-intermediate','lvl-advanced');
+  document.body.classList.add('lvl-'+level);
+  applyCopy(level);
+  applyStepBadges(level);
   const showAdv   = level==='advanced' || (level==='intermediate' && prefs.showAdv!==false);
   const showEng   = level==='advanced' || (level==='intermediate' && prefs.showEng!==false);
   const showLab   = level==='advanced' || (level==='intermediate' && prefs.showLab!==false);

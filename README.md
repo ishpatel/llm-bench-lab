@@ -59,15 +59,20 @@ reading, because a number nobody can interpret does not travel.
 beginner, intermediate, or advanced. Beginners get their setup checked, a good
 first model chosen, and a simpler screen. Intermediates pick their engine and
 models and decide which power features are visible. Advanced users get the whole
-lab, nothing hidden. The **Mode** button changes the answer any time.
+lab with the tutorial voice removed: field explainers disappear and the page
+blurbs compress to one technical line. Even the metric tiles change register —
+a beginner sees "Answering speed" and "Where it ran"; an expert sees
+"Generation speed" and "Model placement". The **Mode** button changes the
+answer any time.
 
 ![First-visit mode chooser](docs/screenshots/11-welcome.png)
 
-**Type nothing, learn something.** Pick a model, tap a sample prompt, press
-Run. The page explains every field, and the sample prompts are written so the
-first result already demonstrates something real about the machine.
+**Type nothing, learn something.** In beginner mode the run form becomes a
+numbered path: pick a model, tap a sample prompt, press Run, with every field
+explained in plain words. Advanced mode strips all of it away and leaves a
+dense, terse surface — same app, different register.
 
-![New Run tab with one-tap sample prompts](docs/screenshots/10-new-run.png)
+![New Run tab in beginner mode, with a numbered path and sample prompts](docs/screenshots/10-new-run.png)
 
 **A benchmark run, explained.** Each metric has a verdict, tagged with the
 machine that produced it, alongside the model's answer and four dimensions for
