@@ -183,6 +183,20 @@ model across three precisions: Q4 at 102.9 tok/s, Q8 at 72.7, FP16 at 44.1.
 Roughly 2.3x from FP16 to Q4, consistent with decode being bandwidth-bound:
 fewer bytes per weight means fewer bytes moved per token.
 
+### Active parameters, not total parameters (2026 addendum)
+
+A later addendum, M3 Max only, run 2026-08-20 with thinking disabled and frozen
+alongside the campaign data: the 2026 mid-large class separates two numbers that
+the original campaign could treat as one. **Qwen3.6-27B** (dense, 27.8B, 17 GB
+at Q4) decodes at **18.2 tok/s**; **Gemma 4 26B** (mixture-of-experts, ~4B
+active per token, 18 GB) decodes at **77.7 tok/s** on the same prompts — 4.2x
+faster at nearly identical file size, with both fully resident. Total
+parameters decide whether a model *fits*; active parameters decide how fast it
+*runs* once it does. Spread across repeats was 0.4-4.4%. Both models think by
+default; with the budget left at 256 tokens they spend all of it reasoning and
+emit nothing visible, which is why the config disables thinking and why the CLI
+now says so when it happens.
+
 ### Two caveats recorded with the data
 
 **Reproducibility differs by machine.** M3 Max within-run spread is 0.0–2.9%. The
@@ -606,9 +620,10 @@ recognise, scoring a correct abstention as a failure.
 ```
 
 Prompts live in `configs/prompts.json` as `{ key: { text, note } }`. For thinking
-models such as Qwen3, add `"think": false` to `options` to disable the reasoning
-stream — worth doing in a speed comparison, since otherwise you are also
-measuring how much a model chooses to think.
+models such as Qwen3 and Qwen3.6 (which thinks by default), add `"think": false`
+to `options` to disable the reasoning stream — worth doing in a speed
+comparison, since otherwise you are also measuring how much a model chooses to
+think.
 
 ### Included configs
 
@@ -619,6 +634,7 @@ measuring how much a model chooses to think.
 | `quant-sweep.json` | One 4B model at Q4, Q8 and FP16 |
 | `quant-reverse.json` | The same sweep in reverse model order, as a thermal and ordering control |
 | `context-scaling.json` | One model across 4K to 32K context capacity |
+| `27b-class.json` | The 2026 mid-large class: Qwen3.6-27B and Gemma 4 26B (MoE), thinking disabled for a fair speed comparison |
 | `task-with-doc.json` | A grounded-versus-ungrounded task using a Markdown reference |
 | `task-with-pdf.json` | The same, exercising the PDF extractor |
 | `mac.json` | Apple-Silicon-only matrix |

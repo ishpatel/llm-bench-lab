@@ -1,0 +1,10 @@
+{
+  "name": "27b-class",
+  "runs": 3,
+  "warmup": 1,
+  "measure_cold_start": true,
+  "options": { "temperature": 0, "num_predict": 256, "think": false },
+  "models": ["qwen3.6:27b", "gemma4:26b"],
+  "context_lengths": [null],
+  "prompts": ["short_qa", "reasoning", "prefill_stress"]
+}

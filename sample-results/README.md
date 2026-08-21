@@ -10,6 +10,9 @@ them.
 - `context-scaling_*.json` — one 5.2 GB model across 4K to 32K context capacity
 - `eval-*-life_lab.txt` / `eval-*-guardrails.txt` — RAG and safety suite output
 - `CROSS-SYSTEM.html` — the generated report merging both machines
+- `27b-class_m3-max*.json` — addendum (2026-08-20, M3 Max only): Qwen3.6-27B
+  dense vs Gemma 4 26B MoE, thinking disabled, same prompts as the main
+  campaign
 
 Two caveats recorded with the data rather than hidden:
 

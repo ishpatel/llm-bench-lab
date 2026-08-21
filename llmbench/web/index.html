@@ -913,10 +913,16 @@ function applyLevel(){
 // name heuristic stands in, preferring the small quantized tags and never fp16.
 function pickBeginnerModel(){
   const gen=state.models.filter(m=>m.generative&&!m.embedding);
-  const score=m=>{const n=m.name.toLowerCase();let v=50;
-    for(const [pat,sc] of [[/nano|mini|tiny/,0],[/[^0-9]1b/,5],[/3b/,10],[/4b/,15],
-                           [/7b|8b/,30],[/1[0-9]b/,60]]) if(pat.test(n)){v=sc;break;}
-    if(/fp16/.test(n))v+=40; if(/q8/.test(n))v+=8;
+  // Parse the parameter count out of the tag instead of pattern-tiering it:
+  // substring tiers mis-filed the new big models ("27b" matched the 7b tier,
+  // "26b-a4b" matched 4b) and would have handed a beginner a 17 GB download.
+  const score=m=>{const n=m.name.toLowerCase();
+    const sizes=[...n.matchAll(/(\d+(?:\.\d+)?)\s*b\b/g)].map(x=>parseFloat(x[1]))
+      .filter(x=>x>=0.5&&x<=700);          // ignore q4/q8 and version numbers
+    let v=sizes.length?Math.max(...sizes)*4:40;   // unknown size ~ mid-pack
+    if(/nano|mini|tiny/.test(n))v=Math.min(v,2);
+    if(/fp16|bf16/.test(n))v+=40;                 // heavier file, same params
+    if(/q8/.test(n))v+=8;
     return v;};
   return gen.sort((a,b)=>score(a)-score(b))[0];
 }

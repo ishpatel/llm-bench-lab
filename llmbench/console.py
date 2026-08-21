@@ -305,6 +305,21 @@ def _notes(cells: List[Dict[str, Any]], labels: List[str]) -> List[Tuple[str, st
         notes.append((f"{len(noisy) - MAX_VARIANCE_NOTES} further cells varied by "
                       f"more than {NOISY_SPREAD * 100:.0f}% across repeats.", "ok"))
 
+    # A thinking-by-default model can spend its whole token budget reasoning
+    # and never emit a visible word. The table's fallback to the first hidden
+    # token would otherwise pass silently as "First word".
+    for lab, cell, _ in ranked:
+        runs_ = cell.get("runs") or []
+        if runs_ and all((r.get("ttfv_ms") is None and
+                          (r.get("thinking_chars") or 0) > 0 and r.get("ok"))
+                         for r in runs_ if r.get("ok")) and \
+                any(r.get("ok") for r in runs_):
+            notes.append((f"{lab} spent its whole {_int(_median(cell.get('aggregate') or {}, 'output_tokens')) or ''}"
+                          "-token budget thinking and produced no visible words; "
+                          "its First word column shows the first hidden token. "
+                          'Add "think": false to options, or raise num_predict.',
+                          "ok"))
+
     approx = sorted({c.get("model") or lab for lab, c, _ in ranked
                      if any(r.get("approximate_tokens") for r in (c.get("runs") or []))})
     if approx:
