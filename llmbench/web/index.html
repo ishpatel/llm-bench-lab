@@ -935,7 +935,11 @@ const LVL_KEY='llmbench.level', LVL_PREFS='llmbench.prefs';
 function getLevel(){try{return localStorage.getItem(LVL_KEY)}catch(e){return null}}
 function getPrefs(){try{return JSON.parse(localStorage.getItem(LVL_PREFS)||'{}')}catch(e){return {}}}
 function saveLevel(level,prefs){try{localStorage.setItem(LVL_KEY,level);
-  localStorage.setItem(LVL_PREFS,JSON.stringify(prefs||{}));}catch(e){}}
+  // Only an explicit prefs object (the wizard's Apply) rewrites preferences.
+  // Choosing beginner or advanced used to save {}, silently destroying the
+  // intermediate engine/model setup the user would return to.
+  if(prefs!==undefined)localStorage.setItem(LVL_PREFS,JSON.stringify(prefs||{}));
+  }catch(e){}}
 
 const POWER_TABS=['cross','copilot','agent','evals'];
 
@@ -1017,13 +1021,26 @@ function applyLevel(){
       if(!showLab&&b.classList.contains('active'))
         document.querySelector('[data-tab="new"]').click();}});
   // An intermediate choice of an OpenAI engine has to survive a reload:
-  // re-drive the same connect path once, exactly as the wizard's Apply did.
+  // re-drive the same connect path the wizard's Apply used — but at most ONCE
+  // per engine per page. The first version cleared its in-flight guard and
+  // re-entered applyLevel on failure, which against a stopped engine became a
+  // hot loop measured at over 1,000 status requests per second.
+  state.lvlReconnectTried=state.lvlReconnectTried||new Set();
   if(level==='intermediate'&&prefs.engine&&prefs.engine.kind==='openai'
-     &&!state.trtActive&&!state.lvlReconnecting){
-    state.lvlReconnecting=true;
+     &&!state.trtActive&&!state.lvlReconnectTried.has(prefs.engine.base_url)){
+    state.lvlReconnectTried.add(prefs.engine.base_url);
     $('#trt').checked=true;$('#trtRow').style.display=showEng?'':'none';
     $('#trtUrl').value=prefs.engine.base_url;$('#trtLabel').value=prefs.engine.label;
-    checkTrt().then(()=>{state.lvlReconnecting=false;applyLevel();});
+    checkTrt().then(()=>{
+      if(state.trtActive){applyLevel();return;}
+      // The saved engine is not running: fall back to the default engine
+      // cleanly (the toggle path restores the model list) and say so. The
+      // preference is kept, so the next page load tries again once.
+      $('#trt').checked=false;$('#trt').onchange();
+      toast(`${prefs.engine.label} isn't running right now — using Ollama. `+
+            'Start it and reload, or change engines with the Mode button.');
+      applyLevel();
+    });
   }
   // Intermediate model list: hide unticked models, but only when the ticked
   // names exist in the current picker. The saved list belongs to one engine;
@@ -1078,7 +1095,7 @@ $('#levelBtn').onclick=openLevelModal;
 
 document.querySelectorAll('.lvlopt').forEach(b=>b.onclick=()=>{
   const level=b.dataset.level;
-  if(level==='advanced'){saveLevel('advanced',{});applyLevel();closeLevelModal();return;}
+  if(level==='advanced'){saveLevel('advanced');applyLevel();closeLevelModal();return;}
   if(level==='beginner')return beginnerFlow();
   intermediateFlow();
 });
@@ -1102,7 +1119,7 @@ async function beginnerFlow(){
   go.onclick=()=>finishBeginner(blocked);
 }
 function finishBeginner(blocked){
-  saveLevel('beginner',{});applyLevel();closeLevelModal();
+  saveLevel('beginner');applyLevel();closeLevelModal();
   if(blocked){openDrawer('readyDrawer');
     $('#readyBanner').scrollIntoView({behavior:'smooth',block:'center'});return;}
   const m=pickBeginnerModel();
@@ -1129,20 +1146,30 @@ async function intermediateFlow(){
       +'<span class="hint">Start Ollama, LM Studio, llama-server, vLLM, Jan or '
       +'GPT4All, then reopen Mode.</span>';
     $('#lvlModels').innerHTML='<span class="hint">no engine yet</span>';return;}
+  const saved=getPrefs();
+  let startIdx=0;
+  if(saved.engine)
+    startIdx=Math.max(0,found.findIndex(e=>e.base_url===saved.engine.base_url));
+  const savedMissing=saved.engine&&!found.some(e=>e.base_url===saved.engine.base_url);
   box.innerHTML=found.map((e,i)=>{
-    const port=e.base_url.rsplit?e.base_url.split(':').pop():'';
     return `<label class="lvlrow"><input type="radio" name="lvleng" value="${i}"
-      ${i===0?'checked':''} style="width:auto"> ${esc(e.label)}
+      ${i===startIdx?'checked':''} style="width:auto"> ${esc(e.label)}
       <span class="hint">${esc(e.base_url)} · ${e.models.length} model${e.models.length===1?'':'s'}</span></label>`;
-  }).join('');
+  }).join('')+(savedMissing?`<div class="hint">Your saved engine (${esc(saved.engine.label)}) `+
+    'isn\u2019t running right now, so it isn\u2019t listed.</div>':'');
   const renderModels=i=>{
     lvlEngineChoice=found[i];
     const ms=lvlEngineChoice.models;
+    const tick=new Set(saved.models||[]);
     $('#lvlModels').innerHTML=ms.length?ms.map(m=>
-      `<label class="lvlrow"><input type="checkbox" value="${esc(m)}" style="width:auto"> ${esc(m)}</label>`
+      `<label class="lvlrow"><input type="checkbox" value="${esc(m)}" ${tick.has(m)?'checked':''} style="width:auto"> ${esc(m)}</label>`
     ).join(''):'<span class="hint">this engine lists no models</span>';
   };
-  renderModels(0);
+  // The three visibility toggles reflect what is saved, not factory defaults.
+  $('#lvlShowAdv').checked=saved.showAdv!==false;
+  $('#lvlShowEng').checked=saved.showEng!==false;
+  $('#lvlShowLab').checked=saved.showLab!==false;
+  renderModels(startIdx);
   box.querySelectorAll('input[name=lvleng]').forEach(r=>
     r.onchange=()=>renderModels(+r.value));
   $('#lvlIntGo').onclick=()=>{
@@ -1153,6 +1180,7 @@ async function intermediateFlow(){
       engine:lvlEngineChoice?{kind:lvlEngineChoice.kind,base_url:lvlEngineChoice.base_url,
                               label:lvlEngineChoice.label}:null});
     closeLevelModal();
+    if(state.lvlReconnectTried)state.lvlReconnectTried.clear();
     const eng=lvlEngineChoice;
     if(eng&&eng.kind==='openai'){
       $('#trt').checked=true;$('#trtRow').style.display='';
